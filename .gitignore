@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtualenvs
+.venv/
+env/
+venv/
+ENV/
+
+# Poetry
+poetry.lock
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+!.env.example
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.coveragerc
+
+# Mypy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+docker/data/
+
+# Local upload storage — git-ignored and volume-mounted in Docker
+data/
+
+# Alembic generated (keep versions, not __pycache__)
+migrations/__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# PTB persistence (development fallback)
+*.pickle
