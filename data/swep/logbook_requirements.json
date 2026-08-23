@@ -1,0 +1,31 @@
+{
+  "version": "mvp_1.0",
+  "generation_rules": [
+    {"id":"grounded_generation","rule":"Use verified building context and student-provided information as the basis for generation."},
+    {"id":"no_invention","rule":"Do not invent personal participation, observations, challenges, or learning experiences."},
+    {"id":"personalization","rule":"Use student responses to make the final output specific to the student."},
+    {"id":"shared_context","rule":"Shared building context may describe what was taught or generally experienced, but must not automatically be presented as the student's personal experience."},
+    {"id":"fast_output","rule":"Give a useful draft before asking unnecessary questions."}
+  ],
+  "daily_logbook": {
+    "purpose":"Generate content that helps the student complete one day's SWEP logbook entry.",
+    "minimum_context_required":["building_or_department"],
+    "context_sources":["shared_building_context","student_notes","student_memory","personalization_answers"],
+    "information_to_generate":[
+      {"id":"activity","description":"Clear description of what was taught, demonstrated, observed, or worked on.","source_priority":["student_notes","shared_building_context"]},
+      {"id":"personal_experience","description":"What the student personally did, observed, participated in, or focused on.","requires_personal_confirmation":true},
+      {"id":"knowledge_gained","description":"Main technical or practical knowledge the student gained or understood better."},
+      {"id":"skills_or_competencies","description":"Relevant technical, observational, analytical, communication, teamwork, or professional skills developed."},
+      {"id":"personal_reflection","description":"Short reflection or takeaway based on confirmed experience.","requires_personal_confirmation":true}
+    ]
+  },
+  "question_limits":{"minimum":0,"maximum":3,"default":1},
+  "final_output":{"sections":[
+    {"id":"activity_description","label":"Activity / Work Done"},
+    {"id":"learning","label":"Knowledge / Learning Gained"},
+    {"id":"personal_contribution","label":"My Participation / Experience"},
+    {"id":"skills","label":"Skills / Competencies Developed"},
+    {"id":"reflection","label":"Personal Takeaway"}
+  ],"requirements":["Use concise language suitable for handwriting into a logbook.","Keep technical information accurate to supplied context.","Do not present unconfirmed shared context as personal experience."]},
+  "mvp_scope":{"included":["building_context_retrieval","student_notes_input","student_memory_input","first_draft_generation","targeted_personalization_questions","final_daily_logbook_output","repeat_for_next_day"],"not_required_yet":["full_weekly_summary","competency_tracking_system","automatic_PO_mapping","evidence_portfolio_management","attendance_tracking","HSE_tracking","problem_analysis","final_reflection_generation","advanced_group_context_management"]}
+}
