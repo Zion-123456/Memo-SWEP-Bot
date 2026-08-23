@@ -1,8 +1,7 @@
 """Load and resolve the static SWEP MVP context files.
 
-The loader deliberately keeps shared context separate from a student's
-personal experience. It is used to retrieve safe memory prompts and to give
-the AI verified background, never to prove that a student performed an act.
+Shared context is used as verified background and memory prompts, never as
+proof that a particular student personally performed an activity.
 """
 
 from __future__ import annotations
@@ -67,7 +66,7 @@ class SwepContext:
         return "specialized_project"
 
     def safe_building_context(self, building_id: str) -> dict[str, Any]:
-        """Return only context useful for generation; identity is retained."""
+        """Return context useful for generation while preserving the shared-context boundary."""
         item = self.get_building(building_id) or {}
         return {
             "building_id": item.get("building_id"),
@@ -83,9 +82,8 @@ class SwepContext:
             "key_things_students_observed": item.get("key_things_students_observed", []),
             "source_context_notes": item.get("source_context_notes", []),
             "critical_rule": (
-                "This is shared context only. Do not state that the student performed,
-                "
-                "used, observed, or completed any item unless the student confirms it."
+                "This is shared context only. Do not state that the student performed, used, "
+                "observed, or completed any item unless the student confirms it."
             ),
         }
 
@@ -94,9 +92,6 @@ class SwepContext:
 
     def question_limits(self) -> dict[str, Any]:
         return dict(self.requirements.get("question_limits", {}))
-
-    def generation_principles(self) -> dict[str, Any]:
-        return dict(self.generation.get("generation_context", {}).get("generation_principles", {}))
 
     def prompt_bundle(
         self,
