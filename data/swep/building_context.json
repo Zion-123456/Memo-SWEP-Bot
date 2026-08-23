@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0-mvp",
+  "context_id": "swep_building_context_2026",
+  "purpose": "Shared SWEP context only. It is not proof of individual student participation.",
+  "core_usage_rules": {
+    "shared_context_is_not_personal_experience": true,
+    "never_invent_personal_participation": true,
+    "student_confirmation_required_for_personal_actions": true
+  },
+  "buildings": [
+    {
+      "building_id": "civil",
+      "building_name": "Civil Engineering",
+      "confidence": "high",
+      "topics_taught": ["Building planning and architectural interpretation", "Ground-floor and upper-floor layouts", "Building dimensions and spatial planning", "CCTV system planning and camera placement", "Engineering drawing interpretation", "3D building representation and visualization", "Project coordination and group engineering work"],
+      "activities_or_demonstrations": ["Development and interpretation of building floor plans", "Ground-floor building design/planning", "Top-floor building design/planning", "Coordination of upper-floor design with ground-floor layout", "CCTV camera placement and blind-spot planning", "Engineering drawing refinement", "3D representation/design", "Preparation of drawings for submission"],
+      "equipment_processes_or_technologies": ["Architectural/engineering floor plans", "CAD/design software", "CCTV cameras", "CCTV cabling", "PoE/network infrastructure", "NVR systems", "3D building modelling/design tools"],
+      "facilitators": ["Building/department lecturers and SWEP facilitators"],
+      "key_things_students_observed": ["How engineering systems fit within a building layout", "How dimensions affect equipment placement", "How CCTV positions reduce blind spots", "How related drawings are coordinated and corrected", "How group members divide design responsibilities"],
+      "source_context_notes": ["Individual authorship or participation must be confirmed before personal logbook claims are generated."]
+    },
+    {
+      "building_id": "chemical",
+      "building_name": "Chemical Engineering",
+      "confidence": "high",
+      "topics_taught": ["Chemical engineering principles", "Industrial process operations", "Process equipment and unit operations", "Process safety", "Material and energy considerations"],
+      "activities_or_demonstrations": ["Observation of engineering/process facilities", "Lectures on industrial processes", "Exposure to process equipment and workflows", "Discussion of industrial safety and process operations"],
+      "equipment_processes_or_technologies": ["Process equipment", "Industrial processing systems", "Chemical/process engineering instrumentation", "Process safety systems"],
+      "facilitators": ["Chemical Engineering lecturers", "SWEP facilitators"],
+      "key_things_students_observed": ["Application of chemical engineering to industrial processes", "Role of equipment and process control", "Importance of safety", "Connection between theory and industrial operations"],
+      "source_context_notes": []
+    },
+    {
+      "building_id": "building_technology",
+      "building_name": "Building Technology",
+      "confidence": "high",
+      "topics_taught": ["Building construction principles", "Building components and systems", "Construction planning", "Building services", "Construction materials and methods"],
+      "activities_or_demonstrations": ["Observation of building/construction processes", "Interpretation of building drawings", "Discussion of construction methods", "Exposure to practical building technology"],
+      "equipment_processes_or_technologies": ["Building drawings", "Construction materials", "Building services", "Construction tools and equipment"],
+      "facilitators": ["Building Technology lecturers", "SWEP facilitators"],
+      "key_things_students_observed": ["How building components form an integrated system", "How construction methods affect the final building", "Importance of accurate drawings and dimensions", "Relationship between engineering design and physical construction"],
+      "source_context_notes": []
+    },
+    {
+      "building_id": "eee",
+      "building_name": "Electrical/Electronic Engineering (EEE)",
+      "confidence": "high",
+      "topics_taught": ["Basic electrical wiring system design", "Transformers", "Circuit breakers", "Electrical panels", "Grounding and earthing", "Cable selection", "Power systems", "Wireless/mobile communication"],
+      "activities_or_demonstrations": ["Conceptual electrical system design", "Load calculation examples", "Schematic design discussion", "Electrical design drawing review", "Communication systems lecture"],
+      "equipment_processes_or_technologies": ["Transformers", "Circuit breakers", "Electrical panels", "Grounding systems", "Electrical wiring and cables"],
+      "facilitators": ["Dr. Olabode Idowu-Bismark", "Engr. Adeyeye Adekole", "Engr. Olajumoke West", "Prof. Ademola Abdulkareem"],
+      "key_things_students_observed": ["How electrical power reaches end users", "Role of transformers and protection devices", "Why cable selection depends on current and installation conditions", "Differences between copper and aluminium conductors"],
+      "source_context_notes": []
+    },
+    {
+      "building_id": "mech",
+      "building_name": "Mechanical Engineering",
+      "confidence": "high",
+      "topics_taught": ["Solar energy fundamentals", "Off-grid power systems", "Energy storage technologies", "Battery management systems", "Solar PV operation"],
+      "activities_or_demonstrations": ["Introduction to off-grid solar systems", "Solar PV energy-flow explanation", "Energy-storage comparison", "PV instrumentation and measurement lecture", "I-V curve explanation"],
+      "equipment_processes_or_technologies": ["PV panels", "Charge controllers", "Battery banks", "Inverters", "Battery Management Systems"],
+      "facilitators": ["Dr. Udoye N. E.", "Engr. M. E. John", "Prof. R. T. Loto", "Dr. E. I. Obanor", "Dr. Babalola P. Olufemi"],
+      "key_things_students_observed": ["How solar PV converts sunlight to electrical power", "How batteries support off-grid systems", "Energy-storage technologies", "PV performance through I-V curves", "Effect of irradiance and temperature on PV performance"],
+      "source_context_notes": []
+    },
+    {
+      "building_id": "pet",
+      "building_name": "Petroleum Engineering",
+      "confidence": "high",
+      "topics_taught": ["Basics of oil and gas well drilling", "Drilling rig systems", "Well classification", "Onshore and offshore drilling", "Drilling fluid circulation", "Well logging and completion"],
+      "activities_or_demonstrations": ["Drilling systems and rig-component walkthrough", "Discussion of engineering roles in drilling", "Drilling personnel roles", "Well logging and completion explanation", "Stress and strain conceptual analysis"],
+      "equipment_processes_or_technologies": ["Derricks/masts", "Drill strings", "Drill bits", "Blowout Preventers", "Mud circulation systems"],
+      "facilitators": ["Engr. Dike Humphrey N. (Ph.D.)", "Engr. D. Deborah Olaniyan", "Ojegbile, P.O.", "Olabode Oluwasanmi", "Engr. Aghaulor Gift"],
+      "key_things_students_observed": ["How drilling combines rotation and weight", "Major drilling-rig systems", "Drilling-fluid circulation", "Roles of personnel in drilling operations", "How geological and logging data inform well decisions"],
+      "source_context_notes": []
+    },
+    {
+      "building_id": "specialized_mech",
+      "building_name": "Specialized Mechanical Engineering",
+      "confidence": "high",
+      "topics_taught": ["Electrical power systems", "Power generation", "Power transmission", "Power distribution", "Transformers", "Solar-panel maintenance"],
+      "activities_or_demonstrations": ["Interactive power-system quiz", "Nigeria electricity generation/transmission/distribution discussion", "Solar-panel maintenance discussion", "Transformer quiz questions", "Job-readiness/self-assessment prompts"],
+      "equipment_processes_or_technologies": ["Electrical generators", "Transformers", "Earthing systems", "Power distribution infrastructure", "Fuses"],
+      "facilitators": ["Dr. Edith Alagbe", "Prof. V. E. Efeovbokhan"],
+      "key_things_students_observed": ["Power flow from generation through transmission and distribution", "Voltage levels at different stages", "Importance of transformers", "Importance of earthing for electrical safety", "Effect of solar-panel maintenance on performance"],
+      "source_context_notes": []
+    }
+  ]
+}
