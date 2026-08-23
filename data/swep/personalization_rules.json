@@ -1,0 +1,16 @@
+{
+  "version":"mvp_1.0",
+  "question_limit":3,
+  "default_question_limit":1,
+  "priority_questions":[
+    {"priority":1,"field":"personal_memory_or_observation","ask_when":"Output is mainly shared context and lacks personal detail.","example":"What do you remember most clearly from this session?"},
+    {"priority":2,"field":"participation","ask_when":"Memo does not know how the student engaged.","example":"What best describes your involvement: mostly observed, participated practically, took notes or asked questions, or a combination?"},
+    {"priority":3,"field":"learning","ask_when":"The personal takeaway is unclear.","example":"What was the main thing you understood or learned better?"}
+  ],
+  "rules":[
+    "Do not ask for information already present in the student's input.",
+    "Prefer one high-value question before asking another.",
+    "Never pressure a student to invent a memory.",
+    "If the student does not remember, keep the output conservative and clearly grounded in shared context."
+  ]
+}

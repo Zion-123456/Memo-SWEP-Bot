@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from telegram.ext import Application, ApplicationBuilder
 
 from app.ai.groq import GroqProvider
-from app.ai.provider import AIProvider
 from app.database.redis import Redis
 from app.intent.classifier import IntentClassifier
 from app.intent.router import IntentRouter
@@ -17,8 +16,6 @@ from app.repositories.knowledge_topic import KnowledgeTopicRepository
 from app.repositories.memory_connection import MemoryConnectionRepository
 from app.services.ai_memory import AiMemoryService
 from app.services.longitudinal_analysis import LongitudinalAnalysisService
-from app.services.memory_query import MemoryQueryService
-from app.services.memory_retrieval import MemoryRetrievalService
 from app.services.progress_narrative import ProgressNarrativeService
 from app.storage.local import LocalStorageProvider
 from app.storage.provider import StorageProvider
@@ -27,6 +24,7 @@ from app.telegram.handlers.commands import register_command_handlers
 from app.telegram.handlers.dashboard import register_dashboard_handlers
 from app.telegram.handlers.error import handle_error
 from app.telegram.handlers.start import build_onboarding_handler
+from app.telegram.handlers.swep import register_swep_handlers
 from app.telegram.middleware.logging import StructlogMiddleware
 from app.telegram.persistence.redis_persistence import RedisPersistence
 
@@ -63,7 +61,6 @@ def build_bot_application(
     if longitudinal_service is not None:
         app.bot_data["longitudinal_service"] = longitudinal_service
 
-    intent_router: IntentRouter | None = None
     classifier = IntentClassifier(ai_provider)
 
     def _progress_factory(session: AsyncSession) -> ProgressNarrativeService:
@@ -87,19 +84,14 @@ def build_bot_application(
 
     StructlogMiddleware.install(app)
 
-    # 1. Onboarding ConversationHandler
+    # Order matters: SWEP text-state handling must run before the generic
+    # memory capture MessageHandler so reconstruction answers are not captured
+    # as unrelated memories.
+    register_swep_handlers(app)
     app.add_handler(build_onboarding_handler())
-
-    # 2. Commands (/today, /timeline, /insights, /delete, /help, /menu)
     register_command_handlers(app)
-
-    # 3. Memory Capture Handlers (Text, Voice, Photo, Document)
     register_capture_handlers(app)
-
-    # 4. Telegram Mini Dashboard (Sprint 3.1)
     register_dashboard_handlers(app)
-
-    # 5. Global Error Handler
     app.add_error_handler(handle_error)
 
     logger.info("Telegram bot application built successfully.")

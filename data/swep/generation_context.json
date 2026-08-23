@@ -1,0 +1,34 @@
+{
+  "version":"mvp_1.0",
+  "generation_principles":{
+    "grounded_generation":true,
+    "personalize_only_from_confirmed_information":true,
+    "shared_context_is_not_personal_experience":true,
+    "never_invent_participation":true,
+    "never_invent_dates":true,
+    "never_invent_facilitators":true,
+    "never_invent_equipment_usage":true,
+    "never_invent_measurements_or_results":true,
+    "use_shared_context_to_expand_or_clarify_confirmed_experience":true,
+    "preserve_uncertainty_when_evidence_is_insufficient":true
+  },
+  "priority_order":["personal_answers","student_input","selected_building","shared_building_context","general_knowledge"],
+  "general_knowledge_rule":"Do not introduce outside technical facts merely to make an entry sound sophisticated. Prefer supplied SWEP evidence.",
+  "writing_requirements":{
+    "voice":"Natural first-person student voice where personal reflection is required.",
+    "style":"Clear, technically informed, concise, believable, and human.",
+    "avoid":["overly polished corporate language","generic AI-sounding summaries","unnecessary jargon","exaggerated claims","fabricated technical depth"],
+    "technical_level":"Match the student's confirmed level of exposure.",
+    "personalization":"Every first-person claim must be traceable to student input or confirmed personal answers."
+  },
+  "anti_hallucination_rules":[
+    "Never claim the student operated equipment merely because it appears in shared context.",
+    "Never claim the student performed a calculation merely because a worked example exists.",
+    "Never claim the student conducted an experiment merely because a procedure is described.",
+    "Never claim a lecturer's name unless supported by context for that session.",
+    "Never fabricate dates, measurements, results, or observations.",
+    "Never convert 'students were taught' into 'I performed'.",
+    "Never use another student's assignment as evidence of the current student's experience.",
+    "Never merge separate sessions simply because they occurred in the same building."
+  ]
+}
