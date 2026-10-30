@@ -100,7 +100,7 @@ Use [render.yaml](../render.yaml) and the complete variable table in
 - [ ] Confirm one **Free Web Service**, native Python, no paid worker, Redis or
   persistent disk, and automatic deployment disabled.
 - [ ] Python: `3.12.14`; build:
-  `pip install poetry==2.5.1 && poetry install --only main --no-interaction`.
+  `pip install --upgrade pip==26.2.2 && pip install poetry==2.5.1 && poetry install --only main --no-interaction`.
 - [ ] Start:
   `poetry run uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log`.
 - [ ] Health path: `/api/v1/ready`; independent liveness: `/live`.
@@ -140,3 +140,39 @@ Accepted work is durable in PostgreSQL. Telegram retains unaccepted updates only
 for a limited time; do not rely on an indefinite outage recovery window. Background
 work alone does not establish always-on availability. Do not add artificial keepalive
 traffic. Warm up manually for the supervised demo and disclose these limitations.
+
+## Required evidence and failure criteria for sign-off
+
+Use this table with the checkboxes above. All live rows remain **UNVERIFIED**.
+The final decision and current exact test/build results are in
+[the final readiness report](final-pilot-readiness-report.md). No production task
+below is authorized merely because it appears in the checklist.
+
+| Item / what to do | Verify success | Evidence to collect | Failure / stop condition |
+| --- | --- | --- | --- |
+| Inspect correct Supabase project | Dashboard ref exactly `verhllnqohsdypbyyeib`; read-only flag on | Ref plus sanitized metadata per inspection guide | Wrong ref, write-enabled query, inaccessible required sections |
+| Check protected credentials | Matching project/bot; credentials load without logging | Presence/readiness and sanitized authentication results | Missing/mismatched credentials, values appearing in logs |
+| Inventory database/buckets | Actual ownership/FKs, migration revision, private bucket identified | Aggregate counts, metadata and policy review | Unexplained schema drift, public evidence bucket, unclear data owner |
+| Back up and test recovery, after approval | Restored counts/FKs/file hashes match | Protected backup manifest and isolated restore report | Missing objects, hash mismatch, failed restore |
+| Review migration plan | Range matches actual revision; no parallel empty history | Approved inventory/SQL/rollback plan | Unreviewed schema move, destructive shortcut or no backup |
+| Configure Free Render service | Approved commit, one Free instance, no paid add-ons; secrets protected | Sanitized settings/commit and variable matrix | Wrong branch/plan, missing environment, enabled automatic migration |
+| Deploy only after explicit approval | Build/start succeed, `/live` and `/api/v1/ready` return 200 | Commit/build logs and health bodies without secrets | Startup exception, 503 readiness, unexpected writes |
+| Register webhook only after explicit approval | Expected endpoint, correct secret header, no poller | Sanitized `getWebhookInfo` result/error counts | Wrong URL, repeated errors, concurrent polling |
+| Personal `/start` and menu | Short onboarding and every visible action responds | Synthetic conversation transcript | Broken button or legacy required form blocking personal use |
+| Text capture/edit/confirm | Full preview, original preserved, reviewed text saved once | Record ID and original/reviewed comparison privately | Silent save, lost original, duplicate record |
+| Project create/rename/associate | Owner's project and linked memories searchable | Project/record IDs and query result | Duplicate defaults, orphan link, cross-owner project |
+| Retrieve memory by keyword/date/project | Correct owned source, date and evidence reference | Expected vs actual IDs; no private text in report | Fabricated answer, unrelated fallback, cross-account result |
+| Persistent check-in | Skip/edit/resume after restart; one confirmation | Draft/record IDs and restart checkpoint | Lost answers, overwritten edits or duplicate save |
+| Real Telegram voice note | Actual OGG/Opus download → private original → Groq → review | Duration/format, timings, source checksum, outcome; no audio in report | Empty/wrong transcript labelled success, source lost, unreviewed derived text treated as verified |
+| Voice failure/retry | Failure shown; same source survives; retry can succeed | Sanitized error class, unchanged checksum and saved outcome | Repeated uncontrolled retries, duplicate save or missing source |
+| Photo/PDF | Retained original, honest extraction status, editable preview where derived | Format/size/checksum and outcome | Unsupported extraction claimed successful, public URL, lost file |
+| Restart/redeployment | Confirmed files/records and drafts retrievable afterward | Before/after IDs and hashes | Dependence on ephemeral local files or vanished draft |
+| Account isolation | Second authorized account denied read/edit/confirm/evidence access | Denial result and expected owner, without message text | Any unauthorized access |
+| Failed inbox visibility/recovery | Counts/last error visible without payload dump; approved replay deduplicates save | Aggregate states and sanitized recovery record | Silent disappearance, premature acknowledgement or unapproved production requeue |
+| Free cold start | New real message eventually processes after idle sleep | Measured delay/retry/outcome and no duplicate saved record | Lost work, unexplained outage, latency unsuitable for demo |
+| Director-demo sign-off | All required live rows pass, blockers resolved and limitations accepted | Dated human sign-off against approved commit | Any required unverified path, unresolved ownership/backup failure |
+
+Synthetic WAV transcription is historical provider evidence only. Real Telegram
+voice download/codec handling, production private storage, actual provider quota and
+timeout/retry behavior must all pass the real-note rows above. No live result is
+inferred from mocks, local SQL tests or a successful Docker import.

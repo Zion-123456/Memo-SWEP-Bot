@@ -9,12 +9,16 @@ is prepared, but workspace Supabase access is network-blocked. Existing database
 schemas and buckets therefore have not been inspected. No production migration,
 bucket creation, Render deployment or webhook registration has been performed.
 
+The latest comprehensive review is [final-pilot-readiness-report.md](final-pilot-readiness-report.md),
+including dependency remediation, historical credential findings and unresolved full
+lint/type-check results. Use that report for current approval decisions.
+
 ## Evidence and current feature matrix
 
 The GitHub baseline was `1dec7701b8a9de73896b7babbe1e1e07b7cda1ea` with **236 passing
 tests** after resolving the undeclared aiofiles dependency and test settings.
 Before the Free-plan adaptation the suite reached 280 passing tests. Final local
-validation: **320 passed, 0 failed, 0 skipped, 0 errors**, in 8.43 seconds, with
+validation: **332 passed, 0 failed, 0 skipped, 0 errors**, in 9.46 seconds, with
 the database tests enabled against an isolated local PostgreSQL database. Telegram
 API delivery and Supabase Storage HTTP responses were mocked in automated tests.
 The final Docker image built successfully on Python 3.12.14 without Redis installed.

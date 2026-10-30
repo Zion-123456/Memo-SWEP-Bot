@@ -50,7 +50,7 @@ Original SWEP columns remain; the personal workflow makes those fields optional.
 Review [render.yaml](../render.yaml). Its native Python build and startup commands are:
 
 ```bash
-pip install poetry==2.5.1 && poetry install --only main --no-interaction
+pip install --upgrade pip==26.2.2 && pip install poetry==2.5.1 && poetry install --only main --no-interaction
 poetry run uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log
 ```
 

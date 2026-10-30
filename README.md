@@ -1,3 +1,5 @@
+Current pilot review: [final readiness report](docs/final-pilot-readiness-report.md), [Supabase SQL Editor guide](docs/supabase-inspection-guide.md), and [environment matrix](docs/render-environment-matrix.md). No production deployment is approved.
+
 # Memo personal companion — Free webhook pilot
 
 Telegram-first personal capture, persistent check-ins, projects, memory search and

@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-30",
+  "timezone": "Africa/Lagos",
+  "reviewed_application_commit": "6fa42c89909def5237b5b1019767af12e91ac225",
+  "pytest": {
+    "passed": 332,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "seconds": 9.46,
+    "external_providers": "mocked",
+    "database": "isolated local PostgreSQL"
+  },
+  "docker": {
+    "build": "passed",
+    "python": "3.12.14",
+    "image_id": "sha256:e209d4a88777eaa529df49e99bb4404430938027090e4f1df4156ed6fdeb5b7d",
+    "redis_installed": false,
+    "startup_readiness_liveness_shutdown": "passed; local PostgreSQL, mocked Telegram, local temporary storage"
+  },
+  "syntax_checks": "passed; Ruff E9,F63,F7,F82",
+  "full_ruff": {
+    "findings": 273,
+    "codes": {
+      "RUF002": 4,
+      "E501": 151,
+      "B008": 29,
+      "I001": 16,
+      "F401": 12,
+      "RUF022": 1,
+      "RUF012": 1,
+      "PT018": 2,
+      "RUF100": 2,
+      "F541": 1,
+      "UP038": 1,
+      "UP017": 23,
+      "RUF006": 1,
+      "F841": 1,
+      "B023": 1,
+      "F811": 1,
+      "W293": 3,
+      "E402": 2,
+      "UP035": 5,
+      "UP007": 12,
+      "E701": 1,
+      "PT006": 2,
+      "PT012": 1
+    }
+  },
+  "mypy": {
+    "command": "mypy --explicit-package-bases app",
+    "errors": 279,
+    "files_with_errors": 39,
+    "files_checked": 102,
+    "status": "failed; type debt unresolved"
+  },
+  "dependencies": {
+    "pip_check": "passed after refreshing project metadata",
+    "poetry_check": "passed with metadata deprecation warnings",
+    "advisory_service": "PyPI",
+    "initial_advisory_records": 32,
+    "initial_distinct_package_advisories": 17,
+    "local_packages_audited": 109,
+    "local_advisories": 0,
+    "image_packages_audited": 42,
+    "image_advisories": 0,
+    "scope": "Python package advisory matching; not OS/image vulnerability scanning"
+  },
+  "inspection_sql": {
+    "sha256": "e2e70b0a8b958469bfeb8378f42d261ff0c7831740ee76e5f0dc7685de84a9d9",
+    "read_only": true,
+    "local_postgresql16": "passed, including synthetic migration/bucket/inbox metadata",
+    "production_executed": false
+  },
+  "production": {
+    "inspection": "blocked by network policy",
+    "mutations": false,
+    "migrations": false,
+    "webhook_registration": false,
+    "deployment": false,
+    "credential_changes": false
+  },
+  "history_security": {
+    "baseline_commits_scanned": 4,
+    "matches_to_current_injected_credentials": 0,
+    "legacy_manual_scripts_with_token_literals": 9,
+    "legacy_literals_removed_from_pilot_tree": true,
+    "historical_literals_remain": true,
+    "credential_validity_tested": false
+  }
+}
