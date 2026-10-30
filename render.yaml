@@ -1,0 +1,53 @@
+# $0 Render Web Service pilot. No deployment happens by committing this file.
+services:
+  - type: web
+    name: memo-pilot
+    runtime: python
+    plan: free
+    region: frankfurt
+    numInstances: 1
+    autoDeploy: false
+    buildCommand: pip install poetry==2.5.1 && poetry install --only main --no-interaction
+    startCommand: poetry run uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log
+    healthCheckPath: /api/v1/ready
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: POETRY_VIRTUALENVS_IN_PROJECT
+        value: "true"
+      - key: APP_ENV
+        value: production
+      - key: RUN_MIGRATIONS
+        value: "false"
+      - key: REGISTER_WEBHOOK
+        value: "true"
+      - key: DATABASE_SCHEMA
+        value: memo
+      - key: SUPABASE_PROJECT_REF
+        value: verhllnqohsdypbyyeib
+      - key: SUPABASE_URL
+        value: https://verhllnqohsdypbyyeib.supabase.co
+      - key: SUPABASE_STORAGE_BUCKET
+        value: memo-private
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: MEMO_DB_POOL_SIZE
+        value: "2"
+      - key: MEMO_DB_MAX_OVERFLOW
+        value: "2"
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: AI_ENABLED
+        value: "true"
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_TRANSCRIPTION_MODEL
+        value: whisper-large-v3
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

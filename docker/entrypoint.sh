@@ -27,6 +27,6 @@ else
     echo "Starting application server..."
     exec uvicorn main:app \
         --host 0.0.0.0 \
-        --port 8000 \
+        --port "${PORT:-8000}" \
         --no-access-log
 fi

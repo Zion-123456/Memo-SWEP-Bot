@@ -1,3 +1,21 @@
+# Memo personal companion — Free webhook pilot
+
+Telegram-first personal capture, persistent check-ins, projects, memory search and
+source evidence. The current pilot deployment uses one Render Free Web Service,
+PostgreSQL-backed Telegram persistence and private Supabase Storage. Redis is only
+needed for optional legacy-state migration/testing.
+
+- [Exact Free Render configuration](render.yaml)
+- [Architecture audit, environment checklist and deployment procedure](docs/render-free-pilot.md)
+- [Validation evidence and remaining deployment gates](docs/release-readiness.md)
+
+No production resources or migrations are created by these files. Deploy only
+after the existing Supabase project has been inspected and the changes approved.
+The following original documentation describes the legacy SWEP/polling workflow;
+use the pilot guide above for the current deployment.
+
+---
+
 # Memo
 
 > AI Memory Operating System for SWEP students.

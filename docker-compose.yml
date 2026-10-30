@@ -24,6 +24,7 @@ services:
   # Redis 7
   # ---------------------------------------------------------------------------
   redis:
+    profiles: ["legacy"]
     image: redis:7-alpine
     restart: unless-stopped
     ports:
@@ -49,7 +50,6 @@ services:
     environment:
       # Override with Docker-internal hostnames
       DATABASE_URL: postgresql+asyncpg://memo:memo@postgres:5432/memo
-      REDIS_URL: redis://redis:6379/0
       RUN_MIGRATIONS: "true"
 
     ports:
@@ -57,12 +57,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     volumes:
-      # Mount source for hot-reload in development.
-      # Override in production with docker-compose.prod.yml.
-      - .:/workspace:ro
+      # Local development only; Render Free uses private Supabase Storage.
+      - ./data/uploads:/app/data/uploads
 
 volumes:
   postgres_data:

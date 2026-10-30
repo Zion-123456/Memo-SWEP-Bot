@@ -1,0 +1,12 @@
+{
+  "registered_users": 1000,
+  "concurrent_interactions": 10,
+  "interactions": 1000,
+  "failures": 0,
+  "duration_seconds": 6.616,
+  "interactions_per_second": 151.16,
+  "p50_ms": 61.31,
+  "p95_ms": 83.71,
+  "workload": "draft commit, confirm commit, duplicate confirmation, project-filtered owner search",
+  "excluded": "Telegram delivery/rate limits, AI and voice latency/quotas, remote Supabase and Render, attachment storage load, dependency outage recovery"
+}
