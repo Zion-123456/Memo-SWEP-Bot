@@ -66,7 +66,7 @@ class LongitudinalAnalysisService:
             logger.warning(
                 "longitudinal.analysis_failed",
                 user_id=str(user_id),
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
 
     async def maybe_analyze(self, user_id: uuid.UUID) -> bool:
@@ -131,7 +131,7 @@ class LongitudinalAnalysisService:
         try:
             return await self._provider.analyze_longitudinal(evidence)
         except Exception as exc:
-            logger.warning("longitudinal.ai_failed", error=str(exc))
+            logger.warning("longitudinal.ai_failed", error_type=type(exc).__name__)
             return None
 
     def _analyze_rule_based(self, events: list) -> LongitudinalAnalysisResult:

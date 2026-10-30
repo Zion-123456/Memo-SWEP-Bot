@@ -544,12 +544,16 @@ def test_schedule_disabled_does_not_create_task() -> None:
 async def test_schedule_creates_task_when_enabled() -> None:
     """schedule() fires a background task when AI is enabled and loop is running."""
     service, _, _, _ = _make_service(enabled=True)
+    service._safe_process = AsyncMock()
+    event_id = uuid.uuid4()
     created: list = []
 
     mock_loop = MagicMock()
     mock_loop.create_task = lambda coro: created.append(coro) or MagicMock()
 
     with patch("asyncio.get_running_loop", return_value=mock_loop):
-        service.schedule(uuid.uuid4())
+        service.schedule(event_id)
 
     assert len(created) == 1
+    await created[0]
+    service._safe_process.assert_awaited_once_with(event_id)

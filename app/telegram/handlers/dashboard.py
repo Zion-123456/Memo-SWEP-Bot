@@ -24,8 +24,11 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 from app.models.event import Event
 from app.models.user import User
 from app.repositories.event import EventRepository
+from app.repositories.knowledge_topic import KnowledgeTopicRepository
 from app.repositories.user import UserRepository
+from app.repositories.weekly_reflection import WeeklyReflectionRepository
 from app.services.progress import ProgressService
+from app.services.weekly_reflection import WeeklyReflectionService
 from app.telegram.keyboards.dashboard import (
     DASHBOARD_ASK,
     DASHBOARD_CAPTURE,
@@ -40,11 +43,6 @@ from app.telegram.keyboards.dashboard import (
     build_capture_button_keyboard,
     build_dashboard_keyboard,
 )
-from app.repositories.knowledge_topic import KnowledgeTopicRepository
-from app.repositories.memory_connection import MemoryConnectionRepository
-from app.repositories.weekly_reflection import WeeklyReflectionRepository
-from app.services.progress_narrative import ProgressNarrativeService
-from app.services.weekly_reflection import WeeklyReflectionService
 
 logger = logging.getLogger(__name__)
 
@@ -130,10 +128,10 @@ _HELP_TITLE = "\u2753 Help"
 _HELP_JOURNEY = "Memo helps you capture and remember your journey."
 _HELP_SEND = "You can send:"
 _HELP_SAVE = (
-    "Memo saves them and uses AI to organise what you've experienced " "and learned."
+    "Review your capture, then confirm, edit or cancel it. AI suggestions remain unverified."
 )
 _HELP_COMMANDS = "Commands for power users:"
-_HELP_START = "/start - Re-run onboarding"
+_HELP_START = "/start - Open your personal Memo"
 _HELP_TODAY = "/today - View today's memories"
 _HELP_TIMELINE = "/timeline - View recent memories"
 _HELP_INSIGHTS = "/insights - AI-extracted insights"
@@ -211,7 +209,7 @@ async def _reply_or_edit(
             await update.callback_query.answer()
         except BadRequest as exc:
             import structlog
-            structlog.get_logger(__name__).warning("callback.answer_failed", error=str(exc))
+            structlog.get_logger(__name__).warning("callback.answer_failed", error_type=type(exc).__name__)
         edit_kb = (
             reply_markup if isinstance(reply_markup, InlineKeyboardMarkup) else None
         )
@@ -315,7 +313,7 @@ async def handle_dashboard_memories(
             lines.append(f"{_b(dt.strftime(_DATE_FORMAT))}")
             for idx, evt in enumerate(grouped[dt], 1):
                 emoji = _PAYLOAD_EMOJI.get(evt.payload_type.value, "\U0001f4cf")
-                raw = evt.raw_text or ""
+                raw = (evt.payload_metadata or {}).get("confirmed_text") or evt.raw_text or ""
                 preview = raw[:80] + "..." if len(raw) > 80 else raw
                 safe = _escape_md(preview)
                 att = len(evt.attachments)
@@ -376,6 +374,7 @@ async def handle_dashboard_insights(
         lines = [
             f"\U0001f9e0 {_b(_INSIGHTS_TITLE)}",
             f"{_b(_i(_INSIGHTS_HEADER))}",
+            "AI suggestions: verify against your original memories\\.",
             "",
         ]
         for evt in analyzed:
@@ -446,7 +445,7 @@ async def handle_dashboard_today(
         lines.append("")
         for idx, evt in enumerate(events, 1):
             emoji = _PAYLOAD_EMOJI.get(evt.payload_type.value, "\U0001f4cf")
-            raw = evt.raw_text or ""
+            raw = (evt.payload_metadata or {}).get("confirmed_text") or evt.raw_text or ""
             safe = _escape_md(raw[:50])
             lines.append(
                 f"{idx}\\. {emoji} _{safe or _escape_md(evt.payload_type.value)}_"
@@ -571,10 +570,6 @@ async def handle_dashboard_progress(
             f" \U0001f399\ufe0f {summary.voices} voice"
         )
         lines.append("")
-        if summary.streak_days > 0:
-            lines.append(f"\U0001f525 {summary.streak_days}\\-day capture streak")
-        else:
-            lines.append(f"{_i(_PROGRESS_NO_STREAK)}")
 
         await _reply_or_edit(update, "\n".join(lines), build_capture_button_keyboard())
 
@@ -599,14 +594,14 @@ async def handle_dashboard_profile(
         f"\u2699\ufe0f {_b(_PROFILE_TITLE)}",
         "",
         f"\U0001f466 {_b(_PROFILE_NAME)}: {_escape_md(user.first_name)}",
-        f"\U0001f393 {_b(_PROFILE_UNIVERSITY)}: {_escape_md(user.university)}",
-        f"\U0001f3eb {_b(_PROFILE_DEPARTMENT)}: {_escape_md(user.department)}",
-        f"\U0001f4da {_b(_PROFILE_PROGRAMME)}: {_escape_md(user.programme)}",
-        f"\U0001f3e2 {_b(_PROFILE_COMPANY)}: {_escape_md(user.company)}",
+        f"\U0001f393 {_b(_PROFILE_UNIVERSITY)}: {_escape_md(user.university or 'Not set')}",
+        f"\U0001f3eb {_b(_PROFILE_DEPARTMENT)}: {_escape_md(user.department or 'Not set')}",
+        f"\U0001f4da {_b(_PROFILE_PROGRAMME)}: {_escape_md(user.programme or 'Not set')}",
+        f"\U0001f3e2 {_b(_PROFILE_COMPANY)}: {_escape_md(user.company or 'Not set')}",
         f"\U0001f4d5 {_b(_PROFILE_DATES)}:"
         f" {_escape_md(start)} \u2192 {_escape_md(end)}",
         "",
-        f"{_i(_PROFILE_EDITING)}",
+        "Optional legacy SWEP setup: /legacy\\_setup",
     ]
     await _reply_or_edit(update, "\n".join(lines), build_dashboard_keyboard())
 

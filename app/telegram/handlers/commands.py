@@ -101,7 +101,7 @@ async def handle_insights(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             return
 
-        lines = ["🔍 **Your Insights** — AI-extracted from your memories:", ""]
+        lines = ["🔍 **Your Insights** — AI suggestions, not verified facts:", ""]
 
         for evt in analyzed:
             analysis = evt.ai_analysis or {}
@@ -248,7 +248,7 @@ async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     help_text = (
         "💡 **Memo — AI Memory Operating System**\n\n"
-        "Just type or send media anytime to log your SWEP day!\n\n"
+        "Capture your experiences, learning, projects and reflections.\n\n"
         "**Supported Inputs:**\n"
         "• 💬 **Text**: Type any update or notes.\n"
         "• 🎙️ **Voice Notes**: Speak your log hands-free.\n"
@@ -260,7 +260,12 @@ async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         "• `/timeline` — View recent memories grouped by day.\n"
         "• `/insights` — View AI-extracted insights (skills, tools, problems).\n"
         "• `/delete <id>` — Delete a captured memory.\n"
-        "• `/start` — Re-run the onboarding configuration.\n"
+        "• `/start` — Open your personal Memo.\n"
+        "• `/checkin` — Start a guided draft; `/resume` returns to it.\n"
+        "• `/confirm`, `/edit`, `/cancel` — Review your capture.\n"
+        "• `/projects` — Browse life areas; `/project <name>` creates one.\n"
+        "• `/search <words>` — Search by keyword, date or project.\n"
+        "• `/legacy_setup` — Optional SWEP profile setup.\n"
         "• `/help` — Display this guide."
     )
     await update.effective_message.reply_text(help_text, parse_mode="Markdown")

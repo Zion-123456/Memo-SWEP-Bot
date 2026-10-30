@@ -96,7 +96,7 @@ class IntentClassifier:
         except (AIError, TimeoutError, Exception) as exc:
             logger.warning(
                 "intent.classification_ai_failed",
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
             return None
 

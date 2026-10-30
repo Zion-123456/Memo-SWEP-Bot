@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 
@@ -17,8 +18,8 @@ logger = structlog.get_logger(__name__)
 class LocalStorageProvider:
     """Stores files on the local filesystem relative to a base directory."""
 
-    def __init__(self, base_dir: str | Path = "./data/uploads") -> None:
-        self._base_dir = Path(base_dir).resolve()
+    def __init__(self, base_dir: str | Path | None = None) -> None:
+        self._base_dir = Path(base_dir or os.environ.get("UPLOAD_DIR", "./data/uploads")).resolve()
         self._base_dir.mkdir(parents=True, exist_ok=True)
 
     async def store(
@@ -30,7 +31,9 @@ class LocalStorageProvider:
     ) -> str:
         """Save file bytes locally under base_dir/subfolder/{uuid}_{filename}."""
         try:
-            target_dir = self._base_dir / subfolder if subfolder else self._base_dir
+            target_dir = (self._base_dir / subfolder).resolve()
+            if not target_dir.is_relative_to(self._base_dir):
+                raise StorageError("Access denied: path outside storage root.")
             await aiofiles.os.makedirs(target_dir, exist_ok=True)
 
             unique_filename = f"{uuid.uuid4().hex}_{Path(filename).name}"
@@ -45,7 +48,7 @@ class LocalStorageProvider:
             return rel_path
 
         except Exception as exc:
-            logger.error("storage.store_failed", error=str(exc), filename=filename)
+            logger.error("storage.store_failed", error_type=type(exc).__name__, filename=filename)
             raise StorageError(f"Failed to store file '{filename}' locally.", details=str(exc)) from exc
 
     async def delete(self, storage_url: str) -> bool:
@@ -66,7 +69,7 @@ class LocalStorageProvider:
         except Exception as exc:
             if isinstance(exc, StorageError):
                 raise
-            logger.error("storage.delete_failed", error=str(exc), relative_path=storage_url)
+            logger.error("storage.delete_failed", error_type=type(exc).__name__, relative_path=storage_url)
             raise StorageError(f"Failed to delete file '{storage_url}'.", details=str(exc)) from exc
 
     async def read(self, storage_url: str) -> bytes:
@@ -86,5 +89,5 @@ class LocalStorageProvider:
         except (FileNotFoundError, StorageError):
             raise
         except Exception as exc:
-            logger.error("storage.read_failed", error=str(exc), relative_path=storage_url)
+            logger.error("storage.read_failed", error_type=type(exc).__name__, relative_path=storage_url)
             raise StorageError(f"Failed to read file '{storage_url}'.", details=str(exc)) from exc

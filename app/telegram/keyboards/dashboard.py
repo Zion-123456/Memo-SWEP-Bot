@@ -40,6 +40,11 @@ def build_dashboard_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [InlineKeyboardButton(_CAP_BTN, callback_data=DASHBOARD_CAPTURE)],
         [
+            InlineKeyboardButton("Check-in / resume", callback_data="memo:checkin"),
+            InlineKeyboardButton("Projects / life areas", callback_data="memo:projects"),
+        ],
+        [InlineKeyboardButton("Search memories", callback_data="memo:search")],
+        [
             InlineKeyboardButton("📖 My Memories", callback_data=DASHBOARD_MEMORIES),
             InlineKeyboardButton("🧠 My Insights", callback_data=DASHBOARD_INSIGHTS),
         ],

@@ -18,13 +18,13 @@ from app.repositories.event import EventRepository
 from app.repositories.memory_connection import MemoryConnectionRepository
 from app.repositories.user import UserRepository
 from app.repositories.user_longitudinal_state import UserLongitudinalStateRepository
-from app.services.proactive_insight import ProactiveInsightService
 from app.services.capture import (
     CaptureRequest,
     CaptureResult,
     CaptureService,
     MediaPayload,
 )
+from app.services.proactive_insight import ProactiveInsightService
 from app.storage.exceptions import StorageDownloadError
 from app.storage.local import LocalStorageProvider
 
@@ -232,7 +232,7 @@ async def _flush_album_capture(
             captured_at=album_data["captured_at"],
         )
     except Exception as exc:  # pragma: no cover - depends on Telegram runtime
-        logger.error("capture.album_failed", media_group_id=album_id, error=str(exc))
+        logger.error("capture.album_failed", media_group_id=album_id, error_type=type(exc).__name__)
         album_data = _ALBUM_BUFFER.get(album_id)
         if album_data:
             await context.bot.send_message(
@@ -295,7 +295,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     logger.info(
         "telegram.text_handler_invoked",
         user_id=str(user.id),
-        text_preview=text_content[:60],
     )
 
     # --- Intent classification (Sprint 4) ---

@@ -49,13 +49,13 @@ class User(TimestampMixin, Base):
     first_name: Mapped[str] = mapped_column(String(255), nullable=False)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    university: Mapped[str] = mapped_column(String(500), nullable=False)
-    department: Mapped[str] = mapped_column(String(500), nullable=False)
-    programme: Mapped[str] = mapped_column(String(500), nullable=False)
-    company: Mapped[str] = mapped_column(String(500), nullable=False)
+    university: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    department: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    programme: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(500), nullable=True)
     supervisor: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Relationships
     events: Mapped[list[Event]] = relationship(

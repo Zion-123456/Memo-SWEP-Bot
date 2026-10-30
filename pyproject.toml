@@ -14,16 +14,18 @@ uvicorn = { version = "^0.34.0", extras = ["standard"] }
 python-telegram-bot = { version = "^21.0", extras = ["job-queue"] }
 sqlalchemy = { version = "^2.0.36", extras = ["asyncio"] }
 asyncpg = "^0.30.0"
+aiofiles = "^25.1.0"
 alembic = "^1.14.0"
 pydantic = { version = "^2.9.0", extras = ["email"] }
 pydantic-settings = "^2.6.0"
-redis = { version = "^5.2.0", extras = ["asyncio"] }
 structlog = "^24.4.0"
 httpx = "^0.28.0"
 groq = "^0.13.0"
 pymupdf = "^1.28.0"
 
 [tool.poetry.group.dev.dependencies]
+# Legacy Redis migration/tests only; production uses PostgreSQL persistence.
+redis = { version = "^5.2.0", extras = ["asyncio"] }
 pytest = "^8.3.0"
 pytest-asyncio = "^0.24.0"
 pytest-cov = "^6.0.0"

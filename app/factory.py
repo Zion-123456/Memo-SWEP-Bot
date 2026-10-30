@@ -1,185 +1,225 @@
-"""Application factory and lifespan management.
-
-Constructs the FastAPI application, configures middleware, and manages the
-async lifespan (startup/shutdown) for shared infrastructure like database
-connection pools, Redis clients, and the Telegram bot application.
-"""
+"""FastAPI webhook host with durable PostgreSQL dispatch and private storage."""
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import os
 from collections.abc import AsyncGenerator
+from urllib.parse import urlsplit
 
 import structlog
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from telegram import Bot
 
 from app.ai.groq import GroqProvider
+from app.api.telegram_webhook import router as webhook_router
 from app.api.v1.router import api_router
 from app.config import settings as settings_module
 from app.core.logging import configure_logging
-from app.database.redis import build_redis_client
-from app.database.session import build_engine, build_session_factory
+from app.database.session import (
+    build_engine,
+    build_session_factory,
+    database_schema,
+    normalize_database_url,
+)
 from app.documents.pdf import PdfTextExtractor
 from app.services.ai_memory import AiMemoryService
 from app.services.longitudinal_analysis import LongitudinalAnalysisService
-from app.services.memory_query import MemoryQueryService
-from app.services.memory_retrieval import MemoryRetrievalService
-from app.services.progress_narrative import ProgressNarrativeService
+from app.services.webhook import WebhookRuntime
 from app.storage.local import LocalStorageProvider
+from app.storage.supabase import SupabaseStorageProvider
 from app.telegram.bot import build_bot_application
 
 logger = structlog.get_logger(__name__)
 
 
+def build_storage(settings):
+    if settings.storage_provider == "supabase":
+        key = settings.supabase_service_role_key
+        return SupabaseStorageProvider(
+            settings.supabase_url,
+            settings.supabase_storage_bucket,
+            key.get_secret_value() if key else "",
+        )
+    if settings.is_production:
+        raise RuntimeError(
+            "Production uploads require private Supabase Storage; local files are ephemeral on Render Free."
+        )
+    return LocalStorageProvider()
+
+
+async def configure_webhook(bot, settings):
+    if not settings.register_webhook:
+        return
+    info = await bot.get_webhook_info()
+    if info.url and info.url != settings.webhook_url:
+        raise RuntimeError(
+            "A different webhook is configured. Review that deployment before switching."
+        )
+    await bot.set_webhook(
+        url=settings.webhook_url,
+        secret_token=settings.telegram_webhook_secret.get_secret_value(),
+        allowed_updates=["message", "callback_query"],
+        max_connections=1,
+        drop_pending_updates=False,
+    )
+
+
+def validate_project_target(settings):
+    if settings.storage_provider != "supabase":
+        return
+    reference = settings.supabase_project_ref
+    url = normalize_database_url(settings.database_url)
+    host = urlsplit(settings.supabase_url).hostname
+    if (
+        not reference
+        or host != reference + ".supabase.co"
+        or (reference not in (url.host or "") and reference not in (url.username or ""))
+    ):
+        raise RuntimeError(
+            "Database and Storage must identify the same confirmed Supabase project."
+        )
+
+
 @contextlib.asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Manage global application resources across the server lifecycle.
-
-    Resources created here are attached to ``app.state`` so they can be
-    accessed by dependency injection (for HTTP routes) or direct reference
-    (for the health check).
-    """
-    settings = settings_module.get_settings()
-
-    # 1. Logging
-    configure_logging(
-        log_level=settings.log_level,
-        is_production=settings.is_production,
-    )
-    logger.info("Application starting up...", env=settings.app_env)
-
-    # 2. Database
-    logger.info("Initialising database connection pool...")
+    settings = app.state.settings
+    configure_logging(settings.log_level, is_production=settings.is_production)
+    validate_project_target(settings)
+    if settings.is_production and (
+        not os.environ.get("DATABASE_URL") or database_schema() != "memo"
+    ):
+        raise RuntimeError(
+            "Production requires the inspected DATABASE_URL and isolated DATABASE_SCHEMA=memo."
+        )
+    if not settings.telegram_webhook_secret:
+        raise RuntimeError(
+            "Set TELEGRAM_WEBHOOK_SECRET securely before starting the webhook host."
+        )
     engine = build_engine(settings.database_url)
-    session_factory = build_session_factory(engine)
-    app.state.session_factory = session_factory
-
-    # 3. Redis
-    logger.info("Initialising Redis client...")
-    redis_client = build_redis_client(settings.redis_url)
-    app.state.redis_client = redis_client
-
-    # 4. Storage
-    logger.info("Initialising storage provider...")
-    storage_provider = LocalStorageProvider()
-    app.state.storage_provider = storage_provider
-
-    # 5. AI Memory Intelligence Layer (Sprint 3) — optional, toggleable.
-    ai_service: AiMemoryService | None = None
-    ai_provider: GroqProvider | None = None
-    longitudinal_service: LongitudinalAnalysisService | None = None
-    if settings.ai_enabled:
-        logger.info("Initialising AI memory processing service...")
-        api_key = settings.get_groq_api_key()
-        if api_key:
-            ai_provider = GroqProvider(
-                api_key=api_key,
+    sessions = build_session_factory(engine)
+    storage = app.state.storage_provider
+    app.state.session_factory = sessions
+    app.state.telegram_ready = False
+    app.state.storage_ready = False
+    provider = None
+    ai_service = None
+    runtime = None
+    task = None
+    try:
+        async with engine.connect() as connection:
+            version = await connection.scalar(
+                text("SELECT version_num FROM alembic_version")
+            )
+            if version != "0006":
+                raise RuntimeError(
+                    "Review and apply migration 0006 before starting the webhook host."
+                )
+        if isinstance(storage, SupabaseStorageProvider):
+            await storage.check_private_bucket()
+        app.state.storage_ready = True
+        if settings.ai_enabled:
+            provider = GroqProvider(
+                settings.get_groq_api_key(),
                 model=settings.groq_model,
                 transcription_model=settings.groq_transcription_model,
             )
-            document_extractor = PdfTextExtractor(
-                max_characters=settings.doc_max_extract_chars,
-            )
-            longitudinal_service = LongitudinalAnalysisService(
-                ai_provider=ai_provider,
-                session_factory=session_factory,
-                enabled=True,
+            longitudinal = LongitudinalAnalysisService(
+                ai_provider=provider, session_factory=sessions, enabled=True
             )
             ai_service = AiMemoryService(
-                ai_provider=ai_provider,
-                session_factory=session_factory,
-                storage_provider=storage_provider,
+                ai_provider=provider,
+                session_factory=sessions,
+                storage_provider=storage,
                 enabled=True,
-                document_extractor=document_extractor,
-                longitudinal_service=longitudinal_service,
+                document_extractor=PdfTextExtractor(
+                    max_characters=settings.doc_max_extract_chars
+                ),
+                longitudinal_service=longitudinal,
             )
+            app.state.ai_provider = provider
             app.state.ai_service = ai_service
-            app.state.longitudinal_service = longitudinal_service
-            app.state.ai_provider = ai_provider
+            app.state.longitudinal_service = longitudinal
         else:
-            logger.warning(
-                "AI_ENABLED is true but GROQ_API_KEY is not set; AI disabled."
+            longitudinal = None
+        # Bot initialization is read-only. Registration occurs only when explicitly
+        # configured at deployment, never by import or offline test construction.
+        async with Bot(settings.telegram_bot_token) as bot:
+            await configure_webhook(bot, settings)
+            app.state.telegram_ready = True
+
+        def builder():
+            return build_bot_application(
+                token=settings.telegram_bot_token,
+                session_factory=sessions,
+                storage_provider=storage,
+                ai_service=ai_service,
+                ai_provider=provider,
+                longitudinal_service=longitudinal,
             )
 
-    # 6. Telegram Bot
-    # The bot runs in the same event loop as FastAPI. This simplifies deployment
-    # for Sprint 1 (single container) without sacrificing async concurrency.
-    bot_app = build_bot_application(
-        token=settings.telegram_bot_token,
-        session_factory=session_factory,
-        redis_client=redis_client,
-        storage_provider=storage_provider,
-        ai_service=ai_service,
-        ai_provider=ai_provider,
-        longitudinal_service=longitudinal_service,
-    )
-    app.state.bot_app = bot_app
+        runtime = WebhookRuntime(
+            sessions, settings.telegram_bot_token.split(":")[0], builder
+        )
+        app.state.telegram_runtime = runtime
+        app.state.telegram_inbox = runtime.inbox
+        task = asyncio.create_task(runtime.run())
 
-    logger.info("Starting Telegram bot polling...")
-    await bot_app.initialize()
-    await bot_app.start()
-    await bot_app.updater.start_polling()  # type: ignore[union-attr]
+        def dispatch_finished(completed):
+            if not completed.cancelled() and completed.exception() is not None:
+                logger.error(
+                    "webhook.dispatcher_stopped",
+                    error_type=type(completed.exception()).__name__,
+                )
 
-    logger.info("Application startup complete.")
-    yield
-
-    # Shutdown sequence (runs in reverse order)
-    logger.info("Application shutting down...")
-
-    logger.info("Stopping Telegram bot...")
-    await bot_app.updater.stop()  # type: ignore[union-attr]
-    await bot_app.stop()
-    await bot_app.shutdown()
-
-    logger.info("Closing Redis client...")
-    await redis_client.aclose()  # type: ignore[attr-defined]
-
-    logger.info("Disposing database engine...")
-    await engine.dispose()
-
-    logger.info("Application shutdown complete.")
+        task.add_done_callback(dispatch_finished)
+        app.state.dispatcher_task = task
+        logger.info(
+            "webhook.host_ready", transport="webhook", storage=settings.storage_provider
+        )
+        yield
+    finally:
+        app.state.telegram_ready = False
+        if runtime:
+            await runtime.stop()
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+        if ai_service:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(ai_service.drain(), timeout=30)
+        if provider and provider._client is not None:
+            await provider._client.close()
+        if isinstance(storage, SupabaseStorageProvider):
+            await storage.close()
+        await engine.dispose()
+        logger.info("webhook.host_stopped")
 
 
 def create_app() -> FastAPI:
-    """Construct the FastAPI application instance.
-
-    Returns:
-        A configured :class:`FastAPI` instance ready for uvicorn.
-    """
     settings = settings_module.get_settings()
-
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         lifespan=app_lifespan,
-        # Disable default docs in production for security, but keep them in dev.
-        docs_url="/docs" if not settings.is_production else None,
-        redoc_url="/redoc" if not settings.is_production else None,
-        openapi_url="/openapi.json" if not settings.is_production else None,
+        docs_url=None if settings.is_production else "/docs",
+        redoc_url=None if settings.is_production else "/redoc",
+        openapi_url=None if settings.is_production else "/openapi.json",
     )
-
-    # Store settings on state so handlers can access them without re-parsing.
     app.state.settings = settings
-
-    # Storage provider (also initialised in lifespan; here for direct create_app callers like tests)
-    app.state.storage_provider = LocalStorageProvider()
-
-    # Setup CORS (restrict this in production based on frontend requirements)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # Include API routers
+    app.state.storage_provider = build_storage(settings)
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(webhook_router)
+
+    @app.get("/live", include_in_schema=False)
+    async def live():
+        return {"status": "alive"}
 
     @app.get("/", tags=["System"])
-    async def root() -> dict[str, str]:
-        """Root endpoint returning basic application info."""
+    async def root():
         return {
             "app": settings.app_name,
             "version": settings.app_version,

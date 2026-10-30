@@ -90,7 +90,7 @@ class CaptureService:
                 logger.warning(
                     "capture.cleanup_failed",
                     storage_url=storage_url,
-                    error=str(cleanup_exc),
+                    error_type=type(cleanup_exc).__name__,
                 )
 
     async def capture(self, req: CaptureRequest) -> CaptureResult:
@@ -178,7 +178,7 @@ class CaptureService:
                 "capture.failed",
                 event_id=str(event.id) if event else None,
                 user_id=str(req.user_id),
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
             if isinstance(exc, StorageError):
                 raise

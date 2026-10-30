@@ -12,7 +12,6 @@ venv/
 ENV/
 
 # Poetry
-poetry.lock
 
 # Distribution / packaging
 dist/

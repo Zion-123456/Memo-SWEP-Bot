@@ -93,6 +93,9 @@ class Event(TimestampMixin, Base):
         server_default="text",
     )
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("memo_projects.id"), nullable=True, index=True
+    )
     status: Mapped[ProcessingStatus] = mapped_column(
         Enum(ProcessingStatus, name="processing_status_enum", create_constraint=True),
         nullable=False,

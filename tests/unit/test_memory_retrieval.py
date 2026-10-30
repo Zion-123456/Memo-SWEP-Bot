@@ -66,3 +66,17 @@ async def test_retrieve_searches_by_topic_keywords(
     )
     assert len(results) == 1
     event_repo.search_by_topic.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_no_keyword_match_does_not_substitute_unrelated_memories(service,event_repo):
+    event_repo.find_by_user_id.return_value=[MagicMock()]
+    assert await service.retrieve(uuid.uuid4(),query="unrecorded journey to Mars") == []
+    event_repo.find_by_user_id.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_empty_date_range_does_not_substitute_another_date(service,event_repo):
+    event_repo.find_by_user_id.return_value=[MagicMock()]
+    assert await service.retrieve(uuid.uuid4(),query="today",time_range="today") == []
+    event_repo.find_by_user_id.assert_not_awaited()

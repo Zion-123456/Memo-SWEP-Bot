@@ -87,6 +87,8 @@ class AiMemoryService:
         self._base_delay = base_delay
         self._doc_extractor = document_extractor
         self._longitudinal = longitudinal_service
+        self._tasks = {}
+        self._semaphore = asyncio.Semaphore(4)
 
     @property
     def enabled(self) -> bool:
@@ -113,7 +115,19 @@ class AiMemoryService:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(self._safe_process(event_id))
+        if event_id in self._tasks or len(self._tasks) >= 32:
+            return
+        task = loop.create_task(self._run_bounded(event_id))
+        self._tasks[event_id] = task
+        task.add_done_callback(lambda completed: self._tasks.pop(event_id, None))
+
+    async def _run_bounded(self, event_id):
+        async with self._semaphore:
+            await self._safe_process(event_id)
+
+    async def drain(self):
+        if self._tasks:
+            await asyncio.gather(*list(self._tasks.values()), return_exceptions=True)
 
     async def _safe_process(self, event_id: uuid.UUID) -> None:
         """Wrap ``process`` so a background task can never crash the loop."""
@@ -171,6 +185,10 @@ class AiMemoryService:
             # Idempotent: skip events that are already fully analysed.
             if event.status == ProcessingStatus.processed and event.ai_analysis:
                 return
+            if (event.processing_retry_count or 0) >= self._max_attempts:
+                event.status = ProcessingStatus.failed
+                await session.commit()
+                return
 
             # Mark processing (visible to observers while AI runs).
             event.status = ProcessingStatus.processing
@@ -179,7 +197,7 @@ class AiMemoryService:
 
             # 1. Obtain the text to analyse: raw text, transcript for voice,
             #    or extracted text for documents.
-            text = event.raw_text
+            text = (event.payload_metadata or {}).get("confirmed_text") or event.raw_text
             doc_metadata: dict[str, Any] = {}
             if not text and event.payload_type == PayloadType.voice:
                 text = await self._transcribe_event(event)

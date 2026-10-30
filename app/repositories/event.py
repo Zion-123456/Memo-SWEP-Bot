@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
 from datetime import date
-import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -195,6 +195,7 @@ class EventRepository(BaseRepository[Event]):
                 Event.is_deleted == False,  # noqa: E712
                 or_(
                     Event.raw_text.ilike(ilike_pattern),
+                    Event.payload_metadata["confirmed_text"].astext.ilike(ilike_pattern),
                     text(f"ai_analysis::text ILIKE :p").bindparams(p=ilike_pattern),
                 ),
             )

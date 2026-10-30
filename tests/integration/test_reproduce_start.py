@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.models.user import User
-from app.telegram.handlers.start import handle_start
+from app.telegram.handlers.start import handle_end_date, handle_start
 
 
 def _make_mock_user() -> User:
@@ -67,6 +67,17 @@ def _make_mock_context() -> MagicMock:
     context.bot = MagicMock()
     context.user_data = {}
     return context
+
+
+@pytest.mark.asyncio
+async def test_expired_onboarding_restarts_instead_of_losing_response() -> None:
+    update = _make_message_update()
+    context = _make_mock_context()
+    with patch("app.telegram.handlers.start.handle_start", new_callable=AsyncMock) as restart:
+        restart.return_value = 42
+        assert await handle_end_date(update, context) == 42
+    restart.assert_awaited_once_with(update, context)
+    assert "expired" in update.effective_message.reply_text.call_args.args[0]
 
 
 @pytest.mark.asyncio

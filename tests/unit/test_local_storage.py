@@ -39,3 +39,27 @@ async def test_local_storage_path_traversal_protection(tmp_path: Path) -> None:
 
     with pytest.raises(StorageError, match="outside storage root"):
         await provider.read("../../../etc/passwd")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("subfolder", ["../outside", "nested/../../outside"])
+async def test_store_rejects_traversal_before_writing(tmp_path: Path, subfolder: str) -> None:
+    root = tmp_path / "uploads"
+    provider = LocalStorageProvider(root)
+    with pytest.raises(StorageError):
+        await provider.store(b"private evidence", "test.txt", "text/plain", subfolder)
+    assert list(root.iterdir()) == []
+    assert not (tmp_path / "outside").exists()
+
+
+@pytest.mark.asyncio
+async def test_store_rejects_absolute_and_symlink_escape(tmp_path: Path) -> None:
+    root = tmp_path / "uploads"
+    provider = LocalStorageProvider(root)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "link").symlink_to(outside, target_is_directory=True)
+    for subfolder in (str(outside), "link"):
+        with pytest.raises(StorageError):
+            await provider.store(b"private evidence", "test.txt", "text/plain", subfolder)
+    assert list(outside.iterdir()) == []

@@ -12,10 +12,30 @@ loggers are obtained.
 from __future__ import annotations
 
 import logging
+import os
+import re
 import sys
 from typing import Any
 
 import structlog
+
+
+class SecretRedactionFilter(logging.Filter):
+    """Scrub configured credentials and token-shaped strings from log output."""
+
+    def filter(self, record):
+        message = record.getMessage()
+        for name in ("TELEGRAM_BOT_TOKEN", "GROQ_API_KEY", "DATABASE_URL", "REDIS_URL", "TELEGRAM_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"):
+            value = os.environ.get(name)
+            if value:
+                message = message.replace(value, "[REDACTED]")
+        message = re.sub(r"\b\d{6,10}:[A-Za-z0-9_-]{20,}\b", "[REDACTED]", message)
+        message = re.sub(r"\bgsk_[A-Za-z0-9]{20,}\b", "[REDACTED]", message)
+        record.msg, record.args = message, ()
+        if record.exc_info:
+            # Exception values can contain SQL parameters or provider URLs.
+            record.exc_text = f"Exception type: {record.exc_info[0].__name__}"
+        return True
 
 
 def configure_logging(log_level: str, *, is_production: bool) -> None:
@@ -67,6 +87,14 @@ def configure_logging(log_level: str, *, is_production: bool) -> None:
         stream=sys.stdout,
         level=log_level,
     )
+
+    # Telegram embeds the bot credential in request URLs. HTTPX logs URLs at
+    # INFO and httpcore emits transport details at DEBUG, even in development.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    for handler in logging.getLogger().handlers:
+        if not any(isinstance(item, SecretRedactionFilter) for item in handler.filters):
+            handler.addFilter(SecretRedactionFilter())
 
     # Silence overly verbose libraries in production
     if is_production:

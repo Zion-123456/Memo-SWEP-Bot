@@ -8,10 +8,12 @@ uses ``lru_cache`` so the file is only parsed once per process lifetime.
 from __future__ import annotations
 
 import functools
+import os
 import re
 from typing import Literal
+from urllib.parse import urlsplit
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # BotFather tokens look like ``<bot_id>:<secret>`` (e.g. 8964284841:AAEc...).
@@ -31,6 +33,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     # -------------------------------------------------------------------------
@@ -45,6 +48,44 @@ class Settings(BaseSettings):
     # Telegram
     # -------------------------------------------------------------------------
     telegram_bot_token: str = "your-bot-token-from-botfather"
+    telegram_webhook_secret: SecretStr | None = None
+    public_base_url: str = Field(
+        default_factory=lambda: os.environ.get("RENDER_EXTERNAL_URL", "")
+    )
+    register_webhook: bool = True
+    storage_provider: Literal["local", "supabase"] = "local"
+    supabase_url: str = ""
+    supabase_project_ref: str = ""
+    supabase_storage_bucket: str = "memo-private"
+    supabase_service_role_key: SecretStr | None = None
+
+    @property
+    def webhook_url(self) -> str:
+        base = self.public_base_url.rstrip("/")
+        parsed = urlsplit(base)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.query
+            or parsed.fragment
+            or parsed.path not in ("", "/")
+        ):
+            raise ValueError(
+                "PUBLIC_BASE_URL must be the deployed service's HTTPS base URL"
+            )
+        return base + "/telegram/webhook"
+
+    @field_validator("telegram_webhook_secret")
+    @classmethod
+    def validate_webhook_secret(cls, value):
+        if value and not re.fullmatch(
+            r"[A-Za-z0-9_-]{32,256}", value.get_secret_value()
+        ):
+            raise ValueError(
+                "Use a 32-256 character webhook secret containing letters, digits, underscores or hyphens"
+            )
+        return value
 
     # -------------------------------------------------------------------------
     # Database

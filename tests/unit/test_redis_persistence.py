@@ -1,12 +1,57 @@
 """Unit tests for the atomic RedisPersistence transaction and concurrency retry logic."""
 
 import json
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from redis.exceptions import WatchError
 
 from app.telegram.persistence.redis_persistence import RedisPersistence
+
+
+@pytest.mark.asyncio
+async def test_onboarding_profile_roundtrip_preserves_date_and_filters_fields():
+    redis = MagicMock()
+    redis.set = AsyncMock()
+    redis.get = AsyncMock()
+    key = b"memo:ptb:onboarding:123"
+
+    async def scan_iter(**kwargs):
+        yield key
+
+    redis.scan_iter = scan_iter
+    persistence = RedisPersistence(redis)
+    profile = {"first_name": "Test", "start_date": date(2026, 10, 1), "secret": "omit"}
+    await persistence.update_user_data(123, profile)
+    saved = redis.set.call_args.args[1]
+    assert "secret" not in json.loads(saved)
+    assert redis.set.call_args.kwargs["ex"] == 86400
+    redis.get.return_value = saved
+    restored = await RedisPersistence(redis).get_user_data()
+    assert restored[123] == {"first_name": "Test", "start_date": date(2026, 10, 1)}
+    assert persistence.store_data.user_data is True
+
+
+@pytest.mark.asyncio
+async def test_completed_or_dropped_profile_removes_redis_data():
+    redis = MagicMock()
+    redis.delete = AsyncMock()
+    persistence = RedisPersistence(redis)
+    await persistence.update_user_data(123, {})
+    redis.delete.assert_awaited_once_with("memo:ptb:onboarding:123")
+
+
+@pytest.mark.asyncio
+async def test_corrupt_onboarding_profile_does_not_block_startup():
+    redis = MagicMock()
+    redis.get = AsyncMock(return_value='{"start_date": "invalid"}')
+
+    async def scan_iter(**kwargs):
+        yield "memo:ptb:onboarding:123"
+
+    redis.scan_iter = scan_iter
+    assert await RedisPersistence(redis).get_user_data() == {}
 
 
 @pytest.mark.asyncio

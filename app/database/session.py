@@ -8,14 +8,34 @@ the factory, ensuring connection pool hygiene.
 
 from __future__ import annotations
 
+import os
+import re
 from collections.abc import AsyncGenerator
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+
+
+def normalize_database_url(database_url):
+    url = make_url(database_url)
+    if url.drivername not in ("postgres", "postgresql", "postgresql+asyncpg"):
+        raise ValueError("Memo requires a PostgreSQL connection string.")
+    query = dict(url.query)
+    if "sslmode" in query:
+        query["ssl"] = query.pop("sslmode")
+    return url.set(drivername="postgresql+asyncpg", query=query)
+
+
+def database_schema():
+    schema = os.environ.get("DATABASE_SCHEMA", "public")
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema):
+        raise ValueError("DATABASE_SCHEMA must be a simple lowercase schema name.")
+    return schema
 
 
 def build_engine(database_url: str) -> AsyncEngine:
@@ -29,13 +49,16 @@ def build_engine(database_url: str) -> AsyncEngine:
         appropriate for a production web service.
     """
     return create_async_engine(
-        database_url,
+        normalize_database_url(database_url),
+        connect_args={
+            "server_settings": {"search_path": f'"{database_schema()}",pg_catalog'}
+        },
         # Pool sizing: keep a modest baseline, allow bursting under load.
-        pool_size=10,
-        max_overflow=20,
+        pool_size=int(os.environ.get("MEMO_DB_POOL_SIZE", "5")),
+        max_overflow=int(os.environ.get("MEMO_DB_MAX_OVERFLOW", "5")),
         pool_pre_ping=True,  # Discard stale connections before use.
-        pool_recycle=3600,   # Recycle connections after 1 hour.
-        echo=False,          # Set to True only for SQL debugging.
+        pool_recycle=3600,  # Recycle connections after 1 hour.
+        echo=False,  # Set to True only for SQL debugging.
     )
 
 

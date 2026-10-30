@@ -20,6 +20,7 @@ def mock_app() -> any:
     # Mock settings & factory on app state
     mock_settings = MagicMock()
     mock_settings.app_version = "0.2.0"
+    mock_settings.is_production = False
     app.state.settings = mock_settings
 
     mock_session = AsyncMock()

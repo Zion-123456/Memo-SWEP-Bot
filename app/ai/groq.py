@@ -84,7 +84,7 @@ class GroqProvider:
     def _client_lazy(self) -> AsyncGroq:
         """Lazily build the async client so no network happens at import."""
         if self._client is None:
-            self._client = AsyncGroq(api_key=self._api_key, timeout=self._timeout)
+            self._client = AsyncGroq(api_key=self._api_key, timeout=self._timeout, max_retries=0)
         return self._client
 
     async def analyze_memory(self, memory: str) -> MemoryAnalysis:

@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 _USER_ERROR_MESSAGE: str = (
     "Something went wrong on my end. Please try again in a moment. "
-    "If the problem persists, restart with /start."
+    "Your saved drafts are retained. Use /resume or restart with /start."
 )
 
 
@@ -38,13 +38,12 @@ async def handle_error(
     """
     logger.error(
         "telegram.unhandled_error",
-        error=str(context.error),
-        traceback=traceback.format_exception(
-            type(context.error),
-            context.error,
-            context.error.__traceback__ if context.error else None,
-        ),
+        error_type=type(context.error).__name__,
+        traceback=[{"file":frame.filename,"line":frame.lineno,"function":frame.name}
+                   for frame in traceback.extract_tb(context.error.__traceback__ if context.error else None)],
     )
+    from app.services.webhook import UPDATE_FAILED
+    UPDATE_FAILED.set(True)
 
     if not isinstance(update, Update):
         return
@@ -63,7 +62,7 @@ async def handle_error(
             context.user_data.clear()
             logger.info("telegram.error_recovery.redis_cleared", user_id=tg_user.id)
         except Exception as exc:
-            logger.warning("telegram.error_recovery.redis_failed", error=str(exc))
+            logger.warning("telegram.error_recovery.redis_failed", error_type=type(exc).__name__)
 
         # 2. Clear Database representation of conversation state
         session_factory = context.bot_data.get("session_factory")
@@ -86,7 +85,7 @@ async def handle_error(
                             user_id=str(user.id),
                         )
             except Exception as exc:
-                logger.warning("telegram.error_recovery.db_failed", error=str(exc))
+                logger.warning("telegram.error_recovery.db_failed", error_type=type(exc).__name__)
 
     if update.effective_message:
         await update.effective_message.reply_text(_USER_ERROR_MESSAGE)

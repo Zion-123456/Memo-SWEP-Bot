@@ -162,7 +162,8 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         user = await user_repo.find_by_telegram_id(telegram_id)
         is_returning = user is not None
 
-    if is_returning:
+    legacy_requested = isinstance(update.message.text, str) and update.message.text.startswith("/legacy_setup")
+    if is_returning and not legacy_requested:
         assert user is not None
         await update.message.reply_text(
             "👋 Welcome back to *Memo*!\n\n"
@@ -188,6 +189,13 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         is_returning=False,
     )
     return OnboardingState.AWAITING_FIRST_NAME
+
+
+async def _personal_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    from app.telegram.handlers.companion import personal_start
+
+    await personal_start(update, context)
+    return ConversationHandler.END
 
 
 async def handle_first_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -387,6 +395,18 @@ async def handle_end_date(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if message is None:
         return OnboardingState.AWAITING_END_DATE
 
+    required = (
+        _KEY_FIRST_NAME,
+        _KEY_UNIVERSITY,
+        _KEY_DEPARTMENT,
+        _KEY_PROGRAMME,
+        _KEY_COMPANY,
+        _KEY_START_DATE,
+    )
+    if any(key not in context.user_data for key in required):
+        await message.reply_text("Your setup session expired. Let's start again.")
+        return await handle_start(update, context)
+
     raw = (message.text or "").strip()
     end_date = parse_date(raw)
 
@@ -442,7 +462,7 @@ async def handle_end_date(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     except DomainValidationError as exc:
         # Defensive: date range was pre-validated above, but belt-and-braces.
-        logger.warning("onboarding.domain_validation_error", error=str(exc))
+        logger.warning("onboarding.domain_validation_error", error_type=type(exc).__name__)
         await message.reply_text(
             _MSG_INVALID_DATE_RANGE,
             parse_mode="Markdown",
@@ -450,6 +470,7 @@ async def handle_end_date(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return OnboardingState.AWAITING_END_DATE
 
+    context.user_data.clear()
     await message.reply_text(
         _MSG_COMPLETE.format(
             company=profile.company,
@@ -506,7 +527,10 @@ def build_onboarding_handler() -> ConversationHandler:  # type: ignore[type-arg]
     text_only = filters.TEXT & ~filters.COMMAND
 
     return ConversationHandler(
-        entry_points=[CommandHandler("start", handle_start)],
+        entry_points=[
+            CommandHandler("start", _personal_start),
+            CommandHandler("legacy_setup", handle_start),
+        ],
         states={
             OnboardingState.AWAITING_FIRST_NAME: [
                 MessageHandler(text_only, handle_first_name)

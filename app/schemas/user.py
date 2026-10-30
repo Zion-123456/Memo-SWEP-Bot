@@ -57,6 +57,13 @@ class UserResponse(UserBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+    university: str | None = None
+    department: str | None = None
+    programme: str | None = None
+    company: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
     id: uuid.UUID
     telegram_id: int
     created_at: datetime

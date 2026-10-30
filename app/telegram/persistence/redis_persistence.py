@@ -2,17 +2,18 @@
 
 Implements :class:`telegram.ext.BasePersistence` to store conversation state
 in Redis rather than in memory, ensuring that active onboarding flows survive
-process restarts. Only conversation state is persisted; bot_data, user_data,
-and chat_data are not used and are left as no-ops.
+process restarts. Conversation state and temporary onboarding profile fields
+are persisted with a 24-hour TTL. Bot and chat data remain no-ops.
 """
 
 from __future__ import annotations
 
 import json
-import structlog
 from collections.abc import Callable
+from datetime import date
 from typing import Any
 
+import structlog
 from redis.asyncio import Redis
 from telegram.ext import BasePersistence
 from telegram.ext._utils.types import ConversationDict
@@ -27,6 +28,10 @@ logger = structlog.get_logger(__name__)
 _CONVERSATION_TTL_SECONDS: int = 86_400  # 24 hours
 
 _KEY_PREFIX: str = "memo:ptb:conversations"
+_USER_DATA_PREFIX: str = "memo:ptb:onboarding:"
+_ONBOARDING_FIELDS = frozenset(
+    {"first_name", "university", "department", "programme", "company", "start_date"}
+)
 
 
 from redis.exceptions import WatchError
@@ -39,9 +44,8 @@ class RedisPersistence(BasePersistence):  # type: ignore[misc]
 
     """A :class:`BasePersistence` implementation backed by Redis.
 
-    Only conversation state is stored. All other data stores (bot, user,
-    chat) are intentionally no-ops to keep the Redis keyspace clean and
-    avoid unbounded memory growth.
+    Conversation state and the small allowlist of onboarding profile fields
+    are stored. Other data stores remain no-ops.
 
     Args:
         redis_client: A connected async Redis client.
@@ -52,7 +56,7 @@ class RedisPersistence(BasePersistence):  # type: ignore[misc]
             store_data=self._make_store_data(
                 bot_data=False,
                 chat_data=False,
-                user_data=False,
+                user_data=True,
                 callback_data=False,
             )
         )
@@ -194,12 +198,40 @@ class RedisPersistence(BasePersistence):  # type: ignore[misc]
         pass
 
     async def get_user_data(self) -> dict[int, dict[Any, Any]]:
-        return {}
+        """Restore in-progress profile fields alongside conversation states."""
+        result: dict[int, dict[Any, Any]] = {}
+        async for key in self._redis.scan_iter(match=f"{_USER_DATA_PREFIX}*"):
+            raw = await self._redis.get(key)
+            if raw is None:
+                continue
+            try:
+                key_text = key.decode() if isinstance(key, bytes) else key
+                user_id = int(key_text.removeprefix(_USER_DATA_PREFIX))
+                data = json.loads(raw)
+                data = {k: v for k, v in data.items() if k in _ONBOARDING_FIELDS}
+                if "start_date" in data:
+                    data["start_date"] = date.fromisoformat(data["start_date"])
+                result[user_id] = data
+            except (ValueError, TypeError, AttributeError):
+                logger.warning("Invalid persisted onboarding profile; ignoring it.")
+        return result
 
     async def update_user_data(
         self, user_id: int, data: dict[Any, Any]
     ) -> None:
-        pass
+        # Store only the profile fields needed to resume onboarding. Arbitrary
+        # bot state and credentials must not enter this persistence namespace.
+        profile = {k: v for k, v in data.items() if k in _ONBOARDING_FIELDS}
+        if not profile:
+            await self.drop_user_data(user_id)
+            return
+        if isinstance(profile.get("start_date"), date):
+            profile["start_date"] = profile["start_date"].isoformat()
+        await self._redis.set(
+            f"{_USER_DATA_PREFIX}{user_id}",
+            json.dumps(profile),
+            ex=_CONVERSATION_TTL_SECONDS,
+        )
 
     async def refresh_user_data(
         self, user_id: int, user_data: dict[Any, Any]
@@ -207,7 +239,7 @@ class RedisPersistence(BasePersistence):  # type: ignore[misc]
         pass
 
     async def drop_user_data(self, user_id: int) -> None:
-        pass
+        await self._redis.delete(f"{_USER_DATA_PREFIX}{user_id}")
 
     async def get_callback_data(self) -> None:
         return None

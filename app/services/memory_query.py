@@ -52,7 +52,11 @@ class MemoryQueryService:
             evidence = MemoryRetrievalService.events_to_evidence(events)
             try:
                 result = await self._provider.answer_memory_query(query, evidence)
-                return self._format_answer(result)
+                allowed = {str(event.id):event for event in events}
+                if not result.evidence_event_ids or any(identifier not in allowed for identifier in result.evidence_event_ids):
+                    return self._format_events_fallback(events)
+                sources = "\n".join(f"{allowed[identifier].event_date} · {identifier}" for identifier in dict.fromkeys(result.evidence_event_ids))
+                return self._format_answer(result) + "\n\nSources:\n" + sources
             except Exception:
                 pass
 
@@ -64,14 +68,13 @@ class MemoryQueryService:
                 "🧠 I found some memories, but not enough specific evidence to "
                 "answer that confidently. Try capturing more about this topic."
             )
-        return f"🧠 {result.answer.strip()}"
+        return f"🧠 {result.answer.strip()[:2000]}"
 
     @staticmethod
     def _format_events_fallback(events: list) -> str:
         lines = ["🧠 From your memories:\n"]
         for idx, evt in enumerate(events[:10], 1):
             date_str = evt.event_date.strftime("%d %b %Y") if evt.event_date else "unknown"
-            summary = (evt.ai_analysis or {}).get("summary") if evt.ai_analysis else None
-            preview = summary or (evt.raw_text or "")[:100]
-            lines.append(f"{idx}. [{date_str}] {preview}")
+            preview = ((evt.payload_metadata or {}).get("confirmed_text") or evt.raw_text or "Attachment record")[:100]
+            lines.append(f"{idx}. [{date_str}] {preview}\nRecord: {evt.id}")
         return "\n".join(lines)

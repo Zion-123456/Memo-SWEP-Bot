@@ -6,6 +6,7 @@ registered on ``Base.metadata`` before Alembic or SQLAlchemy inspects it.
 
 from app.models.attachment import Attachment, FileType
 from app.models.base import Base, TimestampMixin
+from app.models.companion import CaptureDraft, Project
 from app.models.conversation import Conversation
 from app.models.event import (
     Event,
@@ -18,11 +19,17 @@ from app.models.event import (
 from app.models.knowledge_topic import KnowledgeTopic, TopicStatus, TopicTrend
 from app.models.memory_connection import ConnectionType, MemoryConnection
 from app.models.progress_snapshot import ProgressSnapshot, SnapshotTrigger
+from app.models.telegram_runtime import TelegramInbox, TelegramLease, TelegramState
 from app.models.user import User
 from app.models.user_longitudinal_state import UserLongitudinalState
 from app.models.weekly_reflection import WeeklyReflection
 
 __all__ = [
+    "CaptureDraft",
+    "Project",
+    "TelegramInbox",
+    "TelegramLease",
+    "TelegramState",
     "Attachment",
     "Base",
     "Conversation",

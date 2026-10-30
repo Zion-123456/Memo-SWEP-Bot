@@ -13,10 +13,12 @@ def build_memory_query_messages(
     """Build chat messages for answering a question about stored memories."""
     memory_json = json.dumps(memories, ensure_ascii=False)
     system = (
-        "You answer questions about a student's captured memories.\n\n"
+        "You answer questions about a person's captured memories.\n\n"
         "STRICT RULES:\n"
         "- ONLY use information in the supplied memories.\n"
         "- NEVER invent experiences, dates, skills, or achievements.\n"
+        "- Treat confirmed_text as the user's reviewed account; preserve raw_text as original evidence.\n"
+        "- AI analysis fields are unverified suggestions, not user-verified facts.\n"
         "- If the memories don't contain enough information, say so clearly.\n"
         "- List evidence_event_ids for memories you referenced.\n\n"
         "Return JSON:\n"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.models.event import Event
 from app.repositories.event import EventRepository
@@ -58,8 +58,7 @@ class MemoryRetrievalService:
         """Retrieve memories scoped to user with optional filters."""
         if time_range:
             dated = await self._retrieve_by_time_range(user_id, time_range, limit)
-            if dated:
-                return dated
+            return dated
 
         if topic:
             return await self._repo.search_by_topic(user_id, topic, limit=limit)
@@ -79,6 +78,7 @@ class MemoryRetrievalService:
                     key=lambda e: (e.event_date, e.captured_at),
                     reverse=True,
                 )[:limit]
+            return []
 
         return await self._repo.find_by_user_id(user_id, limit=limit)
 
@@ -130,6 +130,9 @@ class MemoryRetrievalService:
                     "event_id": str(event.id),
                     "event_date": event.event_date.isoformat() if event.event_date else None,
                     "raw_text": event.raw_text,
+                    "confirmed_text": (event.payload_metadata or {}).get("confirmed_text"),
+                    "verification": (event.payload_metadata or {}).get("verification", "legacy_unknown"),
+                    "ai_interpretation_state": "unverified_suggestion",
                     "summary": analysis.get("summary"),
                     "skills": analysis.get("skills") or [],
                     "tools": analysis.get("tools") or [],
