@@ -14,13 +14,38 @@ bucket creation, Render deployment or webhook registration has been performed.
 The GitHub baseline was `1dec7701b8a9de73896b7babbe1e1e07b7cda1ea` with **236 passing
 tests** after resolving the undeclared aiofiles dependency and test settings.
 Before the Free-plan adaptation the suite reached 280 passing tests. Final local
-validation: **310 passed, 0 failed, 0 skipped, 0 errors**, in 8.12 seconds, with
+validation: **320 passed, 0 failed, 0 skipped, 0 errors**, in 8.43 seconds, with
 the database tests enabled against an isolated local PostgreSQL database. Telegram
 API delivery and Supabase Storage HTTP responses were mocked in automated tests.
-The final Docker image built successfully and imports without Redis installed.
+The final Docker image built successfully on Python 3.12.14 without Redis installed.
+An additional image smoke test exercised the actual FastAPI lifespan, PostgreSQL
+dispatcher, readiness, liveness and graceful shutdown against the isolated local
+database. It used mocked Telegram requests and local temporary storage; it does
+not verify the production Supabase configuration. Webhook registration was disabled.
 Targeted Ruff syntax checks, `git diff --check`, and dependency consistency checks
 passed. Poetry reported existing package-metadata deprecation warnings; no full
 static-type-check claim is made.
+
+## Follow-up review of the required pilot commit
+
+Remote starting commit `968aed85f84738fe8feb9a0df9c76dcbea10d28e` was verified
+on 30 October 2026; its baseline suite passed all 310 tests. Follow-up fixes:
+
+- Settings previously defaulted webhook registration to enabled. Code and Blueprint
+  now default to disabled, with a regression that forbids registration API calls.
+- Supabase identity validation previously accepted substring matches. Direct
+  endpoints and session-pooler project suffixes must now match exactly; private
+  database roles remain supported. API ports are restricted to standard HTTPS.
+- Dispatcher renewal previously began after initialization, and some construction
+  or shutdown errors could skip lease release. Renewal covers asynchronous startup
+  and cleanup now releases the lease even on those failures.
+- Docker's floating Python tag had drifted to 3.12.16 while Render specified
+  3.12.14. Both Docker stages are pinned to the configured Render patch release.
+
+Ten additional passing tests cover these regressions and actual application startup
+without Redis. The read-only inventory SQL also completed against the isolated local
+database and rolled back. See [the director-demo checklist](director-demo-checklist.md)
+for connectivity, inspection, backup, approval and live smoke-test gates.
 
 | Approved feature | Implementation | Verification and limit |
 | --- | --- | --- |

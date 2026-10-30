@@ -16,6 +16,10 @@ def test_render_blueprint_is_free_web_only_with_secure_configuration():
     assert service["healthCheckPath"] == "/api/v1/ready"
     variables = {entry["key"]: entry for entry in service["envVars"]}
     assert "REDIS_URL" not in variables
+    assert variables["REGISTER_WEBHOOK"]["value"] == "false"
+    python_version = variables["PYTHON_VERSION"]["value"]
+    dockerfile = Path("docker/Dockerfile").read_text()
+    assert dockerfile.count(f"FROM python:{python_version}-slim AS") == 2
     assert variables["TELEGRAM_WEBHOOK_SECRET"]["generateValue"] is True
     for name in (
         "TELEGRAM_BOT_TOKEN",

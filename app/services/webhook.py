@@ -223,26 +223,23 @@ class WebhookRuntime:
         self.active = False
         self.stopping = False
 
+    lease_renew_interval = 20
+
     async def run(self):
         while not self.stopping:
             if not await self.lease.acquire():
                 await asyncio.sleep(2)
                 continue
-            app = self.builder()
+            app = None
             initialized = False
             renewer = None
             try:
-                await self.inbox.recover()
-                await app.initialize()
-                initialized = True
-                await app.start()
-                self.active = True
                 dispatcher = asyncio.current_task()
 
                 async def renew():
                     try:
                         while True:
-                            await asyncio.sleep(20)
+                            await asyncio.sleep(self.lease_renew_interval)
                             if not await self.lease.renew():
                                 raise RuntimeError("Dispatcher lease lost")
                     except asyncio.CancelledError:
@@ -252,6 +249,12 @@ class WebhookRuntime:
                         dispatcher.cancel()
 
                 renewer = asyncio.create_task(renew())
+                app = self.builder()
+                await self.inbox.recover()
+                await app.initialize()
+                initialized = True
+                await app.start()
+                self.active = True
                 while not self.stopping:
                     ai = app.bot_data.get("ai_service")
                     if ai is not None:
@@ -274,16 +277,18 @@ class WebhookRuntime:
                         await asyncio.wait_for(self.wakeup.wait(), timeout=2)
             finally:
                 self.active = False
-                if renewer:
-                    renewer.cancel()
-                    with contextlib.suppress(asyncio.CancelledError):
-                        await renewer
-                if app.running:
-                    await app.stop()
-                if initialized:
-                    await app.shutdown()
-                with contextlib.suppress(Exception):
-                    await self.lease.release()
+                try:
+                    if app is not None and app.running:
+                        await app.stop()
+                    if initialized:
+                        await app.shutdown()
+                finally:
+                    if renewer:
+                        renewer.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await renewer
+                    with contextlib.suppress(Exception):
+                        await self.lease.release()
 
     async def stop(self):
         self.stopping = True

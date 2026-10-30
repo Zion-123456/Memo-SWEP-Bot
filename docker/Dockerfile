@@ -2,7 +2,7 @@
 # Stage 1: Builder
 # Installs Poetry and all production dependencies into an isolated virtualenv.
 # =============================================================================
-FROM python:3.12-slim AS builder
+FROM python:3.12.14-slim AS builder
 
 # Prevent Python from buffering stdout/stderr and writing .pyc files
 ENV PYTHONUNBUFFERED=1 \
@@ -41,7 +41,7 @@ RUN --mount=type=secret,id=proxy_ca \
 # Stage 2: Final runtime image
 # Minimal image containing only the application and its dependencies.
 # =============================================================================
-FROM python:3.12-slim AS final
+FROM python:3.12.14-slim AS final
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

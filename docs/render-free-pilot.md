@@ -61,6 +61,8 @@ Use the pilot branch when reviewing the service source.
 
 | Variable | Purpose and source |
 | --- | --- |
+| `PYTHON_VERSION=3.12.14` | Native Render runtime; both Docker stages use the same patch release |
+| `POETRY_VIRTUALENVS_IN_PROJECT=true` | Keeps the native build/runtime environment in the project |
 | `APP_ENV=production` | Enforces private storage and disables unauthenticated data APIs |
 | `DATABASE_URL` | Protected PostgreSQL connection from the existing project's Connect settings; never invent or paste it in chat |
 | `DATABASE_SCHEMA=memo` | Isolates Memo from existing customer tables |
@@ -72,8 +74,9 @@ Use the pilot branch when reviewing the service source.
 | `TELEGRAM_BOT_TOKEN` | Protected credential for `@use_memo_bot` |
 | `TELEGRAM_WEBHOOK_SECRET` | Render-generated secret; validated in `X-Telegram-Bot-Api-Secret-Token` |
 | `RENDER_EXTERNAL_URL` | Render supplies the actual public service URL automatically |
+| `PORT` | Render supplies the listener port automatically; consumed by the start command |
 | `PUBLIC_BASE_URL` | Optional HTTPS override for a custom public host; omit to use Render's supplied URL |
-| `REGISTER_WEBHOOK=true` | Registers the authenticated endpoint on approved startup, retaining pending updates |
+| `REGISTER_WEBHOOK=false` | Safe preparation default in code and Blueprint; change to `true` only after explicit approval to register the live endpoint |
 | `AI_ENABLED=true` | Enables the existing configured AI provider; may be false for text-only operation |
 | `GROQ_API_KEY` | Protected provider credential; needed for AI and voice transcription |
 | `GROQ_MODEL` | Default `openai/gpt-oss-120b`; verify account quota/access |
@@ -92,9 +95,8 @@ Keep TLS enabled; `postgresql://...?...sslmode=require` is normalized for asyncp
 Nothing in this branch creates infrastructure, a bucket or a production schema.
 No production deployment or migration has been performed.
 
-1. Confirm the protected database and service-role bindings match the project above.
-   The earlier project reference `fldnuruyjiutgiviwyfw` was superseded by the user's
-   confirmation and must not be used for this pilot.
+1. Confirm the protected database and service-role bindings match only the project
+   above. Superseded project references must not be used for this pilot.
 2. Enable the workspace's supported HTTPS route to
    `verhllnqohsdypbyyeib.supabase.co` and its supported TCP route to the actual host
    in `DATABASE_URL`. The current workspace proxy rejected the HTTPS route, and
@@ -142,7 +144,8 @@ No production deployment or migration has been performed.
    references change. Reruns skip copied references. Do not remove originals until
    end-to-end retrieval and the rollback window have been verified.
 8. Review the Free service, its branch, environment and bucket; obtain deployment
-   approval. Stop the old poller before switching. Startup refuses to silently
+   approval, including explicit permission to set `REGISTER_WEBHOOK=true`.
+   Stop the old poller before switching. Startup refuses to silently
    replace a different existing webhook URL and never drops pending Telegram updates.
 
 ## Delivery, recovery and monitoring
@@ -159,6 +162,9 @@ another chat can proceed while one update backs off. Failed work gets at most fi
 dispatch attempts, then remains visible as a failed inbox row for operator review.
 Completed receipts clear their private payload; failed payloads are retained for
 recovery. Do not dump those payloads into logs or reports.
+The lease is renewed during startup as well as dispatch. Construction or shutdown
+failures release it; after an abrupt process kill, takeover may wait for the
+90-second lease expiry. This can add to a Render cold-start delay.
 
 Memory confirmation is protected by an owner-scoped row lock and returns the same
 record when retried. External Telegram replies have at-least-once delivery semantics;
@@ -222,3 +228,6 @@ After an approved deployment:
 
 Live webhook delivery, live Supabase private storage, the actual Render Free service
 and Supabase migration/backup remain unverified until the gates above are completed.
+
+Use [the director-demo checklist](director-demo-checklist.md) to record approval,
+the read-only inspection evidence and the results of each live smoke test.

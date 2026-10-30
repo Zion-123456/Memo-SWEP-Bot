@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     public_base_url: str = Field(
         default_factory=lambda: os.environ.get("RENDER_EXTERNAL_URL", "")
     )
-    register_webhook: bool = True
+    register_webhook: bool = False
     storage_provider: Literal["local", "supabase"] = "local"
     supabase_url: str = ""
     supabase_project_ref: str = ""

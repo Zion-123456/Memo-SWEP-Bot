@@ -71,12 +71,26 @@ def validate_project_target(settings):
     if settings.storage_provider != "supabase":
         return
     reference = settings.supabase_project_ref
-    url = normalize_database_url(settings.database_url)
-    host = urlsplit(settings.supabase_url).hostname
+    try:
+        url = normalize_database_url(settings.database_url)
+        api = urlsplit(settings.supabase_url)
+        host = api.hostname
+        port = api.port
+    except (ValueError, TypeError):
+        raise RuntimeError(
+            "Invalid database or Storage target configuration."
+        ) from None
+    direct = url.host == f"db.{reference}.supabase.co"
+    pooler = (
+        (url.host or "").endswith(".pooler.supabase.com")
+        and bool((url.username or "").rsplit(".", 1)[0])
+        and (url.username or "").endswith(f".{reference}")
+    )
     if (
         not reference
         or host != reference + ".supabase.co"
-        or (reference not in (url.host or "") and reference not in (url.username or ""))
+        or port not in (None, 443)
+        or not (direct or pooler)
     ):
         raise RuntimeError(
             "Database and Storage must identify the same confirmed Supabase project."
