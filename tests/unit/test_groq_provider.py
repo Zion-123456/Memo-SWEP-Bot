@@ -13,7 +13,6 @@ from app.ai.exceptions import AIValidationError, AIProviderError
 from app.ai.groq import GroqProvider, _strip_code_fences
 from app.ai.models import MemoryAnalysis
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -50,17 +49,19 @@ def _make_provider(captured_completions=None) -> tuple[GroqProvider, MagicMock]:
 
 
 def _valid_analysis_json() -> str:
-    return json.dumps({
-        "summary": "Wired a three-phase motor starter.",
-        "activities": ["motor wiring"],
-        "skills": ["electrical"],
-        "tools": ["multimeter"],
-        "problems": ["starter tripping"],
-        "solutions": ["replaced overload relay"],
-        "lessons": ["verify voltage first"],
-        "entities": ["motor", "starter"],
-        "confidence": 0.85,
-    })
+    return json.dumps(
+        {
+            "summary": "Wired a three-phase motor starter.",
+            "activities": ["motor wiring"],
+            "skills": ["electrical"],
+            "tools": ["multimeter"],
+            "problems": ["starter tripping"],
+            "solutions": ["replaced overload relay"],
+            "lessons": ["verify voltage first"],
+            "entities": ["motor", "starter"],
+            "confidence": 0.85,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +151,9 @@ async def test_analyze_memory_no_key_leakage_in_error() -> None:
     """No API key or raw memory appears in raised exceptions."""
     provider, mock_client = _make_provider()
     mock_client.chat.completions.create = AsyncMock(
-        side_effect=APIConnectionError(message="connection refused", request=MagicMock())
+        side_effect=APIConnectionError(
+            message="connection refused", request=MagicMock()
+        )
     )
 
     with pytest.raises(AIProviderError) as exc_info:
@@ -267,7 +270,9 @@ async def test_transcribe_audio_success() -> None:
 @pytest.mark.asyncio
 async def test_transcribe_audio_empty_bytes_returns_empty() -> None:
     provider, mock_client = _make_provider()
-    transcript = await provider.transcribe_audio(b"", filename="voice.ogg", mime_type="audio/ogg")
+    transcript = await provider.transcribe_audio(
+        b"", filename="voice.ogg", mime_type="audio/ogg"
+    )
     assert transcript == ""
     mock_client.audio.transcriptions.create.assert_not_awaited()
 
@@ -276,11 +281,13 @@ async def test_transcribe_audio_empty_bytes_returns_empty() -> None:
 async def test_transcribe_audio_timeout_raises_provider_error() -> None:
     provider, mock_client = _make_provider()
     mock_client.audio.transcriptions.create = AsyncMock(
-             side_effect=APITimeoutError(request=MagicMock())
+        side_effect=APITimeoutError(request=MagicMock())
     )
 
     with pytest.raises(AIProviderError) as exc_info:
-        await provider.transcribe_audio(b"audio", filename="v.ogg", mime_type="audio/ogg")
+        await provider.transcribe_audio(
+            b"audio", filename="v.ogg", mime_type="audio/ogg"
+        )
 
     assert exc_info.value.retryable is True
     assert exc_info.value.category == "timeout"
@@ -298,7 +305,9 @@ async def test_transcribe_audio_api_error_raises_provider_error() -> None:
     mock_client.audio.transcriptions.create = AsyncMock(side_effect=err)
 
     with pytest.raises(AIProviderError) as exc_info:
-        await provider.transcribe_audio(b"audio", filename="v.ogg", mime_type="audio/ogg")
+        await provider.transcribe_audio(
+            b"audio", filename="v.ogg", mime_type="audio/ogg"
+        )
 
     assert exc_info.value.category == "provider_error"
 
@@ -334,8 +343,33 @@ async def test_generate_reflection_api_error_returns_empty() -> None:
     """Reflection failures are non-fatal — returns empty string."""
     provider, mock_client = _make_provider()
     mock_client.chat.completions.create = AsyncMock(
-         side_effect=APIError("oops", request=MagicMock(), body=None)
+        side_effect=APIError("oops", request=MagicMock(), body=None)
     )
 
     insight = await provider.generate_reflection("raw", {"summary": "test"})
     assert insight == ""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,expected", [(503, True), (401, False)])
+@pytest.mark.parametrize("operation", ["analysis", "transcription", "intent", "json"])
+async def test_transient_server_errors_are_retryable_but_auth_errors_are_not(
+    status, expected, operation
+):
+    provider, client = _make_provider()
+    error = APIError("synthetic provider failure", request=MagicMock(), body={})
+    error.status_code = status
+    client.chat.completions.create = AsyncMock(side_effect=error)
+    client.audio.transcriptions.create = AsyncMock(side_effect=error)
+    with pytest.raises(AIProviderError) as raised:
+        if operation == "analysis":
+            await provider.analyze_memory("Synthetic input")
+        elif operation == "transcription":
+            await provider.transcribe_audio(
+                b"OggS synthetic", filename="voice.ogg", mime_type="audio/ogg"
+            )
+        elif operation == "intent":
+            await provider.classify_intent([{"role": "user", "content": "Synthetic"}])
+        else:
+            await provider._json_completion([{"role": "user", "content": "Synthetic"}])
+    assert raised.value.retryable is expected

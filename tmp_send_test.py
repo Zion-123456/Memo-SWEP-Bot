@@ -1,4 +1,5 @@
 """Check if the bot has the intent router configured."""
+import os
 import asyncio
 import urllib.request
 import json
@@ -7,7 +8,7 @@ import json
 # the bot is running and check the database for new events.
 
 # First, send a message that SHOULD NOT be captured
-token = "8964284841:AAEcCVZFURMcHVKDLl7O0EO9EeEfIpslTYI"
+token = os.environ["TELEGRAM_BOT_TOKEN"]
 chat_id = 5499527319
 base_url = f"https://api.telegram.org/bot{token}"
 

@@ -1,10 +1,11 @@
 """Send a single CAPTURE message and verify event is created."""
+import os
 import json
 import time
 import urllib.parse
 import urllib.request
 
-token = "8964284841:AAEcCVZFURMcHVKDLl7O0EO9EeEfIpslTYI"
+token = os.environ["TELEGRAM_BOT_TOKEN"]
 chat_id = 5499527319
 base = f"https://api.telegram.org/bot{token}"
 

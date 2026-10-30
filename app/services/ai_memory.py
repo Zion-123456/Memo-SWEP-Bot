@@ -12,11 +12,9 @@ the processing boundary.
 
 Invariants enforced here:
 
-* The raw memory (``Event.raw_text``) is **never** deleted or overwritten by
-  AI failure. Voice transcripts are only *added* to ``raw_text`` when the audio
-  has no caption yet; the original audio attachment is always preserved.
-  PDF text extraction similarly only *adds* extracted text to ``raw_text``;
-  the original PDF attachment is always preserved.
+* Original text and attachments are preserved. Later transcripts and PDF text
+  are stored separately as unverified derived text in payload metadata; they
+  never become original wording or user-confirmed statements automatically.
 * AI processing failures mark the event ``failed`` (and remain retryable) but
   leave the captured memory fully intact.
 * Provider calls are retried with exponential backoff for retryable errors.
@@ -197,19 +195,35 @@ class AiMemoryService:
 
             # 1. Obtain the text to analyse: raw text, transcript for voice,
             #    or extracted text for documents.
-            text = (event.payload_metadata or {}).get("confirmed_text") or event.raw_text
+            metadata = event.payload_metadata or {}
+            text = (
+                metadata.get("confirmed_text")
+                or event.raw_text
+                or metadata.get("derived_text")
+            )
             doc_metadata: dict[str, Any] = {}
             if not text and event.payload_type == PayloadType.voice:
                 text = await self._transcribe_event(event)
-                if text:
-                    event.raw_text = text
-                    await session.commit()
+                if not text or not text.strip():
+                    raise AIValidationError("Transcription returned no usable text.")
+                event.payload_metadata = {
+                    **(event.payload_metadata or {}),
+                    "derived_text": text,
+                    "derived_text_source": "transcription",
+                    "derived_text_verification": "unverified",
+                }
+                await session.commit()
 
             if not text and event.payload_type == PayloadType.document:
                 extraction = await self._extract_document_text(event)
                 if extraction.text:
                     text = extraction.text
-                    event.raw_text = text
+                    event.payload_metadata = {
+                        **(event.payload_metadata or {}),
+                        "derived_text": text,
+                        "derived_text_source": "pdf_extraction",
+                        "derived_text_verification": "unverified",
+                    }
                     await session.commit()
                     doc_metadata = {
                         "page_count": extraction.page_count,
@@ -325,8 +339,7 @@ class AiMemoryService:
         """Extract text from a document attachment (PDF).
 
         The original document attachment is never modified or deleted here;
-        only the *derived* text is returned so the caller may store it in
-        ``raw_text``. If no document extractor is configured, or the document
+        only the *derived* text is returned for separately labelled metadata. If no document extractor is configured, or the document
         has no PDF attachment, returns an empty result.
 
         For scanned-image PDFs (no extractable text), returns a result with

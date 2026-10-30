@@ -1,10 +1,11 @@
 """Comprehensive Telegram test for Sprint 4 intent routing."""
+import os
 import json
 import time
 import urllib.parse
 import urllib.request
 
-TOKEN = "8964284841:AAEcCVZFURMcHVKDLl7O0EO9EeEfIpslTYI"
+TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = 5499527319
 BASE = f"https://api.telegram.org/bot{TOKEN}"
 

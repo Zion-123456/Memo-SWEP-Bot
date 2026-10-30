@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # combined CA bundle when building behind a managed HTTPS proxy.
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
-    python3 -m pip install --no-cache-dir "poetry==$POETRY_VERSION"
+    python3 -m pip install --no-cache-dir --upgrade \
+      "pip==26.2.2" "poetry==$POETRY_VERSION"
 
 # Copy only dependency manifests first for layer caching
 COPY pyproject.toml poetry.lock ./
@@ -54,6 +55,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
+    python3 -m pip install --no-cache-dir --upgrade "pip==26.2.2"
 
 # Copy virtual environment from builder
 COPY --from=builder /build/.venv /app/.venv

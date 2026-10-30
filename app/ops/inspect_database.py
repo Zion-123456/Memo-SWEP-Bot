@@ -2,33 +2,37 @@
 
 import asyncio
 import os
+from types import SimpleNamespace
 
 from sqlalchemy import text
 
-from app.database.session import build_engine, database_schema, normalize_database_url
+from app.database.session import build_engine, database_schema
+from app.factory import validate_project_target
 
 
 async def inspect():
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         raise RuntimeError("Set DATABASE_URL securely before database inspection.")
-    url = normalize_database_url(dsn)
     expected = os.environ.get("SUPABASE_PROJECT_REF")
-    if (
-        expected
-        and expected not in (url.host or "")
-        and expected not in (url.username or "")
-    ):
-        raise RuntimeError(
-
-                "Connection identity does not match the expected Supabas"
-                "e project reference."
-
+    if expected != "verhllnqohsdypbyyeib":
+        raise RuntimeError("Set the confirmed SUPABASE_PROJECT_REF before inspection.")
+    validate_project_target(
+        SimpleNamespace(
+            storage_provider="supabase",
+            supabase_project_ref=expected,
+            supabase_url=os.environ.get(
+                "SUPABASE_URL", f"https://{expected}.supabase.co"
+            ),
+            database_url=dsn,
         )
+    )
     engine = build_engine(dsn)
     try:
         async with engine.connect() as connection:
             await connection.execute(text("SET TRANSACTION READ ONLY"))
+            await connection.execute(text("SET LOCAL statement_timeout = '5s'"))
+            await connection.execute(text("SET LOCAL lock_timeout = '1s'"))
             db = await connection.scalar(text("SELECT current_database()"))
             rows = await connection.execute(
                 text(
@@ -39,10 +43,8 @@ async def inspect():
             )
             schemas = await connection.execute(
                 text(
-
-                        "SELECT schema_name FROM information_schema.schemata WHE"
-                        "RE schema_name=:schema"
-
+                    "SELECT schema_name FROM information_schema.schemata "
+                    "WHERE schema_name=:schema"
                 ),
                 {"schema": database_schema()},
             )
@@ -53,10 +55,8 @@ async def inspect():
                 "Visible table names (metadata only):", [f"{r[0]}.{r[1]}" for r in rows]
             )
             print(
-
-                    "No records changed. Project display name must also be c"
-                    "hecked in Supabase settings."
-
+                "No records changed. Verify the project display name "
+                "in Supabase settings."
             )
     finally:
         await engine.dispose()

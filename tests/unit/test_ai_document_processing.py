@@ -3,7 +3,7 @@
 Verifies that:
 - PDF documents get text extracted before AI analysis
 - Original PDF attachment is preserved
-- Extracted text is stored in raw_text
+- Extracted text is stored separately as unverified metadata
 - Extraction failures are handled gracefully
 - Empty PDFs produce no hallucination
 - Retryable AI failures follow the existing retry policy
@@ -148,7 +148,7 @@ def _make_service(
 
 @pytest.mark.asyncio
 async def test_pdf_document_extraction_then_ai() -> None:
-    """PDF: extraction, AI, raw_text updated, attachment preserved."""
+    """PDF: extraction, AI, derived text stored separately, attachment preserved."""
     extraction_result = DocumentExtractionResult(
         text="The drilling process begins with site preparation.",
         page_count=2,
@@ -171,8 +171,12 @@ async def test_pdf_document_extraction_then_ai() -> None:
         await service.process(event.id)
 
     assert event.status == ProcessingStatus.processed
-    assert event.raw_text == "The drilling process begins with site preparation."
-    assert event.raw_text != event.attachments[0].storage_url or True
+    assert event.raw_text is None
+    assert event.payload_metadata["derived_text_verification"] == "unverified"
+    assert (
+        event.payload_metadata["derived_text"]
+        == "The drilling process begins with site preparation."
+    )
     assert event.attachments[0].file_type == FileType.document
     assert event.attachments[0].storage_url == "documents/pdf_123.pdf"
     assert event.attachments[0].original_filename == "Reservoir For SWEP.pdf"
@@ -188,8 +192,8 @@ async def test_pdf_document_extraction_then_ai() -> None:
 
 
 @pytest.mark.asyncio
-async def test_extracted_text_stored_in_raw_text() -> None:
-    """The extracted PDF text is stored in raw_text for future reference."""
+async def test_extracted_text_stored_separately_from_original() -> None:
+    """The extracted PDF text is kept as unverified metadata for future reference."""
     extraction_result = DocumentExtractionResult(
         text="Reservoir simulation methodology overview.",
         page_count=1,
@@ -207,7 +211,12 @@ async def test_extracted_text_stored_in_raw_text() -> None:
     with patch("app.services.ai_memory.EventRepository", return_value=mock_repo):
         await service.process(event.id)
 
-    assert event.raw_text == "Reservoir simulation methodology overview."
+    assert event.raw_text is None
+    assert event.payload_metadata["derived_text_verification"] == "unverified"
+    assert (
+        event.payload_metadata["derived_text"]
+        == "Reservoir simulation methodology overview."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +318,9 @@ async def test_pdf_ai_failure_preserves_raw_and_attachment() -> None:
 
     assert event.status == ProcessingStatus.failed
     # Extracted text IS preserved even when AI fails
-    assert event.raw_text == "Extracted PDF text."
+    assert event.raw_text is None
+    assert event.payload_metadata["derived_text_verification"] == "unverified"
+    assert event.payload_metadata["derived_text"] == "Extracted PDF text."
     # Original attachment preserved
     assert event.attachments[0].storage_url == "documents/pdf_123.pdf"
     assert event.ai_analysis is not None
@@ -378,8 +389,10 @@ async def test_retryable_ai_failure_after_extraction() -> None:
     ):
         await service.process(event.id)
 
-    # Extraction happened once (text cached in raw_text)
-    assert event.raw_text == "Reservoir engineering overview."
+    # Extraction happened once (derived text cached in metadata)
+    assert event.raw_text is None
+    assert event.payload_metadata["derived_text_verification"] == "unverified"
+    assert event.payload_metadata["derived_text"] == "Reservoir engineering overview."
     # AI was retried max_attempts times
     assert provider.analyze_memory.await_count == 3
     assert event.status == ProcessingStatus.failed
@@ -511,7 +524,10 @@ async def test_user_isolation_pdf_processing() -> None:
     with patch("app.services.ai_memory.EventRepository", return_value=mock_repo_a):
         await service_a.process(event_a.id)
 
-    assert event_a.raw_text == "Alice's PDF content about geology."
+    assert event_a.raw_text is None
+    assert (
+        event_a.payload_metadata["derived_text"] == "Alice's PDF content about geology."
+    )
     assert event_a.user_id == user_a
     assert event_a.attachments[0].storage_url == "docs/alice.pdf"
     assert event_a.ai_analysis is not None
@@ -524,11 +540,17 @@ async def test_user_isolation_pdf_processing() -> None:
     with patch("app.services.ai_memory.EventRepository", return_value=mock_repo_b):
         await service_b.process(event_b.id)
 
-    assert event_b.raw_text == "Bob's PDF content about chemistry."
+    assert event_b.raw_text is None
+    assert (
+        event_b.payload_metadata["derived_text"] == "Bob's PDF content about chemistry."
+    )
     assert event_b.user_id == user_b
     assert event_b.attachments[0].storage_url == "docs/bob.pdf"
     assert event_b.ai_analysis is not None
-    assert event_a.raw_text != event_b.raw_text  # cross-contamination check
+    assert (
+        event_a.payload_metadata["derived_text"]
+        != event_b.payload_metadata["derived_text"]
+    )
 
 
 # ---------------------------------------------------------------------------

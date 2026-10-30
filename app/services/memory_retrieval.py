@@ -130,6 +130,7 @@ class MemoryRetrievalService:
                     "event_id": str(event.id),
                     "event_date": event.event_date.isoformat() if event.event_date else None,
                     "raw_text": event.raw_text,
+                    "unverified_derived_text": (event.payload_metadata or {}).get("derived_text"),
                     "confirmed_text": (event.payload_metadata or {}).get("confirmed_text"),
                     "verification": (event.payload_metadata or {}).get("verification", "legacy_unknown"),
                     "ai_interpretation_state": "unverified_suggestion",

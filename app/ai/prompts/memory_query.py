@@ -19,6 +19,7 @@ def build_memory_query_messages(
         "- NEVER invent experiences, dates, skills, or achievements.\n"
         "- Treat confirmed_text as the user's reviewed account; preserve raw_text as original evidence.\n"
         "- AI analysis fields are unverified suggestions, not user-verified facts.\n"
+        "- unverified_derived_text is machine transcription/extraction, not a user-verified statement.\n"
         "- If the memories don't contain enough information, say so clearly.\n"
         "- List evidence_event_ids for memories you referenced.\n\n"
         "Return JSON:\n"

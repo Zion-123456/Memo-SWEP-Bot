@@ -84,7 +84,9 @@ class GroqProvider:
     def _client_lazy(self) -> AsyncGroq:
         """Lazily build the async client so no network happens at import."""
         if self._client is None:
-            self._client = AsyncGroq(api_key=self._api_key, timeout=self._timeout, max_retries=0)
+            self._client = AsyncGroq(
+                api_key=self._api_key, timeout=self._timeout, max_retries=0
+            )
         return self._client
 
     async def analyze_memory(self, memory: str) -> MemoryAnalysis:
@@ -120,7 +122,9 @@ class GroqProvider:
         except APIError as exc:
             status = getattr(exc, "status_code", None)
             category = "quota" if status == 429 else "provider_error"
-            retryable = status == 429
+            retryable = status in (408, 409, 429) or (
+                isinstance(status, int) and 500 <= status <= 599
+            )
             raise AIProviderError(
                 f"Groq API error during memory analysis (status={status}).",
                 category=category,
@@ -182,7 +186,9 @@ class GroqProvider:
         except APIError as exc:
             status = getattr(exc, "status_code", None)
             category = "quota" if status == 429 else "provider_error"
-            retryable = status == 429
+            retryable = status in (408, 409, 429) or (
+                isinstance(status, int) and 500 <= status <= 599
+            )
             raise AIProviderError(
                 f"Groq API error during transcription (status={status}).",
                 category=category,
@@ -245,7 +251,9 @@ class GroqProvider:
         except APIError as exc:
             status = getattr(exc, "status_code", None)
             category = "quota" if status == 429 else "provider_error"
-            retryable = status == 429
+            retryable = status in (408, 409, 429) or (
+                isinstance(status, int) and 500 <= status <= 599
+            )
             raise AIProviderError(
                 f"Groq API error during intent classification (status={status}).",
                 category=category,
@@ -287,7 +295,9 @@ class GroqProvider:
         except APIError as exc:
             status = getattr(exc, "status_code", None)
             category = "quota" if status == 429 else "provider_error"
-            retryable = status == 429
+            retryable = status in (408, 409, 429) or (
+                isinstance(status, int) and 500 <= status <= 599
+            )
             raise AIProviderError(
                 f"Groq API error (status={status}).",
                 category=category,

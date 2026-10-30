@@ -1,10 +1,11 @@
 """Send test messages to Memo bot and check responses."""
+import os
 import json
 import time
 import urllib.parse
 import urllib.request
 
-token = "8964284841:AAEcCVZFURMcHVKDLl7O0EO9EeEfIpslTYI"
+token = os.environ["TELEGRAM_BOT_TOKEN"]
 chat_id = 5499527319
 base_url = f"https://api.telegram.org/bot{token}"
 

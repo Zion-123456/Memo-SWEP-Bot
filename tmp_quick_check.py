@@ -1,8 +1,9 @@
 """Quick check bot status."""
+import os
 import json
 import urllib.request
 
-token = "8964284841:AAEcCVZFURMcHVKDLl7O0EO9EeEfIpslTYI"
+token = os.environ["TELEGRAM_BOT_TOKEN"]
 url = f"https://api.telegram.org/bot{token}/getUpdates?limit=5"
 resp = urllib.request.urlopen(url)
 data = json.loads(resp.read().decode())

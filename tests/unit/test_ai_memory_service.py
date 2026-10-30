@@ -14,7 +14,6 @@ from app.models.attachment import Attachment, FileType
 from app.models.event import Event, PayloadType, ProcessingStatus, SourceType
 from app.services.ai_memory import AiMemoryService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -138,7 +137,9 @@ async def test_process_success_sets_processed_status_and_analysis() -> None:
         confidence=0.9,
     )
     event = _make_event()
-    service, mock_session, mock_repo, _ = _make_service(provider=FakeProvider(analysis=analysis))
+    service, mock_session, mock_repo, _ = _make_service(
+        provider=FakeProvider(analysis=analysis)
+    )
     mock_repo.get_by_id_with_attachments = AsyncMock(return_value=event)
 
     with _run_with_mocked_repo(service, mock_repo):
@@ -239,6 +240,7 @@ async def test_process_provider_error_marks_failed_preserves_raw() -> None:
     )
 
     call_count = 0
+
     def repo_side_effect(*args, **kwargs):
         nonlocal call_count
         call_count += 1
@@ -288,8 +290,10 @@ async def test_process_retryable_error_retries_then_fails() -> None:
         provider=provider, event=event, max_attempts=3, base_delay=0.01
     )
 
-    with _run_with_mocked_repo(service, mock_repo), \
-         patch("asyncio.sleep", new_callable=AsyncMock):
+    with (
+        _run_with_mocked_repo(service, mock_repo),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
         await service.process(event.id)
 
     assert provider.analyze_memory.await_count == 3
@@ -303,7 +307,9 @@ async def test_process_non_retryable_error_fails_immediately() -> None:
     event = _make_event()
     provider = FakeProvider()
     provider.analyze_memory = AsyncMock(
-        side_effect=AIProviderError("bad request", category="provider_error", retryable=False)
+        side_effect=AIProviderError(
+            "bad request", category="provider_error", retryable=False
+        )
     )
     service, _, mock_repo, _ = _make_service(
         provider=provider, event=event, max_attempts=3
@@ -375,9 +381,7 @@ async def test_voice_event_transcribes_and_preserves_original() -> None:
     provider.transcribe_audio = AsyncMock(
         return_value="I was debugging the conveyor motor today."
     )
-    service, _, mock_repo, mock_storage = _make_service(
-        provider=provider, event=event
-    )
+    service, _, mock_repo, mock_storage = _make_service(provider=provider, event=event)
     mock_repo.get_by_id_with_attachments = AsyncMock(return_value=event)
     mock_storage.read = AsyncMock(return_value=b"fake-audio-bytes")
 
@@ -385,8 +389,13 @@ async def test_voice_event_transcribes_and_preserves_original() -> None:
         with _run_with_mocked_repo(service, mock_repo):
             await service.process(event_id)
 
-    # Transcript stored in raw_text
-    assert event.raw_text == "I was debugging the conveyor motor today."
+    # Transcript remains separate from original wording and user verification.
+    assert event.raw_text is None
+    assert (
+        event.payload_metadata["derived_text"]
+        == "I was debugging the conveyor motor today."
+    )
+    assert event.payload_metadata["derived_text_verification"] == "unverified"
     # Original audio attachment preserved
     assert event.attachments[0].storage_url == storage_url
     assert event.attachments[0].file_type == FileType.voice
@@ -425,8 +434,10 @@ async def test_voice_transcription_failure_marks_failed_preserves_raw() -> None:
     mock_repo.get_by_id_with_attachments = AsyncMock(return_value=event)
     mock_storage.read = AsyncMock(return_value=b"fake-audio")
 
-    with patch("asyncio.sleep", new_callable=AsyncMock), \
-         _run_with_mocked_repo(service, mock_repo):
+    with (
+        patch("asyncio.sleep", new_callable=AsyncMock),
+        _run_with_mocked_repo(service, mock_repo),
+    ):
         await service.process(event_id)
 
     assert event.status == ProcessingStatus.failed
@@ -483,8 +494,10 @@ async def test_ai_failure_preserves_raw_text() -> None:
         provider=provider, event=event, max_attempts=2, base_delay=0.01
     )
 
-    with _run_with_mocked_repo(service, mock_repo), \
-         patch("asyncio.sleep", new_callable=AsyncMock):
+    with (
+        _run_with_mocked_repo(service, mock_repo),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
         await service.process(event.id)
 
     assert event.raw_text == raw
@@ -515,9 +528,7 @@ async def test_status_transitions_pending_to_failed() -> None:
     """Event status goes to failed on terminal error."""
     event = _make_event(status=ProcessingStatus.pending)
     provider = FakeProvider()
-    provider.analyze_memory = AsyncMock(
-        side_effect=AIValidationError("bad json")
-    )
+    provider.analyze_memory = AsyncMock(side_effect=AIValidationError("bad json"))
     service, _, mock_repo, _ = _make_service(provider=provider, event=event)
     mock_repo.get_by_id_with_attachments = AsyncMock(return_value=event)
 
@@ -557,3 +568,23 @@ async def test_schedule_creates_task_when_enabled() -> None:
     assert len(created) == 1
     await created[0]
     service._safe_process.assert_awaited_once_with(event_id)
+
+
+@pytest.mark.asyncio
+async def test_empty_voice_transcript_fails_without_analysis_or_source_replacement():
+    event = _make_event(
+        payload_type=PayloadType.voice,
+        raw_text=None,
+        attachments=[Attachment(file_type=FileType.voice, storage_url="voice.ogg")],
+    )
+    provider = FakeProvider()
+    provider.transcribe_audio = AsyncMock(return_value="   ")
+    service, _, repo, storage = _make_service(provider=provider, event=event)
+    storage.read.return_value = b"OggS synthetic"
+    with _run_with_mocked_repo(service, repo):
+        await service.process(event.id)
+    assert event.raw_text is None
+    assert event.status == ProcessingStatus.failed
+    assert event.ai_analysis["failure_category"] == "validation_error"
+    assert event.attachments[0].storage_url == "voice.ogg"
+    provider.analyze_memory.assert_not_awaited()
